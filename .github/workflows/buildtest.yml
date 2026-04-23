@@ -38,7 +38,7 @@ jobs:
       - name: Test
         run: cargo test 
       - name: Frontend wasm tests
-        run: CHROMEDRIVER=$(which chromedriver) wasm-pack test --headless --chrome --test frontend
+        run: CHROMEDRIVER=$(which chromedriver) wasm-pack test --headless --chrome --test integration
       - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin
       - name: Backend coverage
