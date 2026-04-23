@@ -2,7 +2,7 @@
 name = "sql-intelliscan"
 version = "0.1.0"
 description = "SQL Intelliscan is an advanced analysis tool for Microsoft SQL Server environments, designed to help DBAs, architects, and technical teams"
-authors = ["Luis Carlos "]
+authors = ["Luis Carlos"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
