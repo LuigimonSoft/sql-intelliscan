@@ -7,3 +7,8 @@ ignore = ["./src-tauri"]
 [serve]
 port = 1420
 open = false
+
+[[hooks]]
+stage = "build"
+command = "npm"
+command_args = ["run", "tailwind:build"]

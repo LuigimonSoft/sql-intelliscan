@@ -26,3 +26,10 @@ cargo.lock
 .AppleDouble
 .LSOverride
 ._*
+
+# node.js
+node_modules/
+package-lock.json
+
+dist/
+
