@@ -1,0 +1,47 @@
+name: Build and Test
+on:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Add wasm target
+        run: rustup target add wasm32-unknown-unknown
+      - name: Install system dependencies
+        run: |
+          echo "deb http://gb.archive.ubuntu.com/ubuntu jammy main" | sudo tee /etc/apt/sources.list.d/jammy.list
+          sudo apt update
+          sudo apt install -y libwebkit2gtk-4.1-dev \
+          build-essential \
+          curl \
+          wget \
+          file \
+          libxdo-dev \
+          libssl-dev \
+          libayatana-appindicator3-dev \
+          librsvg2-dev \
+          libsoup-3.0-dev \
+          libjavascriptcoregtk-4.1-dev
+      - name: Install Tauri
+        run: cargo install create-tauri-app --locked
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.0.0" --locked
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+      - name: Test
+        run: cargo test 
+      - name: Frontend wasm tests
+        run: CHROMEDRIVER=$(which chromedriver) wasm-pack test --headless --chrome --test frontend
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+      - name: Backend coverage
+        run: cargo tarpaulin --manifest-path src-tauri/Cargo.toml --out Stdout --fail-under 80
+      - name: Frontend coverage
+        run: cargo tarpaulin -p Cargo.toml --exclude-files 'src-tauri/*' --out Stdout --fail-under 80
