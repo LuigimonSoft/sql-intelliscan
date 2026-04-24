@@ -44,7 +44,10 @@ jobs:
         run: cargo install cargo-llvm-cov
       - name: Backend coverage
         run: |
-          cargo llvm-cov --workspace --tests --json > backend-coverage.json
+          cargo llvm-cov clean --workspace
+          cargo llvm-cov --workspace --no-report --test backend
+          cargo llvm-cov --workspace --no-report --test backend_contracts
+          cargo llvm-cov --workspace --no-run --json > backend-coverage.json
           python3 - <<'PY'
           import json
           import pathlib
@@ -52,11 +55,13 @@ jobs:
 
           report = json.loads(pathlib.Path("backend-coverage.json").read_text())
           files = report["data"][0]["files"]
-          backend_files = [
-              file for file in files
-              if file["filename"].endswith("src-tauri/src/lib.rs")
-              or file["filename"].endswith("src-tauri/src/main.rs")
-          ]
+          backend_root = pathlib.Path("src-tauri/src").resolve()
+
+          backend_files = []
+          for file in files:
+              file_path = pathlib.Path(file["filename"]).resolve()
+              if backend_root in file_path.parents:
+                  backend_files.append(file)
 
           if not backend_files:
               print("Backend coverage files were not found in llvm-cov output.", file=sys.stderr)
@@ -67,7 +72,7 @@ jobs:
           coverage = (total_covered / total_count) * 100 if total_count else 0.0
 
           print("Backend coverage files:")
-          for file in backend_files:
+          for file in sorted(backend_files, key=lambda item: item["filename"]):
               summary = file["summary"]["lines"]
               print(
                   f"- {file['filename']}: {summary['percent']:.2f}% "
