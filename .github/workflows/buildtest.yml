@@ -40,9 +40,47 @@ jobs:
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/sql-intelliscan-wasm-target
         run: bash ./scripts/wasm-test-local.sh
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
+      - name: Backend coverage
+        run: |
+          cargo llvm-cov --workspace --tests --json > backend-coverage.json
+          python3 - <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          report = json.loads(pathlib.Path("backend-coverage.json").read_text())
+          files = report["data"][0]["files"]
+          backend_files = [
+              file for file in files
+              if file["filename"].endswith("src-tauri/src/lib.rs")
+              or file["filename"].endswith("src-tauri/src/main.rs")
+          ]
+
+          if not backend_files:
+              print("Backend coverage files were not found in llvm-cov output.", file=sys.stderr)
+              sys.exit(1)
+
+          total_count = sum(file["summary"]["lines"]["count"] for file in backend_files)
+          total_covered = sum(file["summary"]["lines"]["covered"] for file in backend_files)
+          coverage = (total_covered / total_count) * 100 if total_count else 0.0
+
+          print("Backend coverage files:")
+          for file in backend_files:
+              summary = file["summary"]["lines"]
+              print(
+                  f"- {file['filename']}: {summary['percent']:.2f}% "
+                  f"({summary['covered']}/{summary['count']} lines)"
+              )
+
+          print(f"Backend line coverage: {coverage:.2f}%")
+
+          if coverage < 80.0:
+              print("Backend coverage is below the required 80%.", file=sys.stderr)
+              sys.exit(1)
+          PY
       - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin
-      - name: Backend coverage
-        run: cargo tarpaulin --manifest-path src-tauri/Cargo.toml --out Stdout --fail-under 80
       - name: Frontend coverage
         run: cargo tarpaulin -p Cargo.toml --exclude-files 'src-tauri/*' --out Stdout --fail-under 80

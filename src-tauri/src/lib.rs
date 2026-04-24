@@ -1,3 +1,17 @@
+use std::sync::{Mutex, OnceLock};
+
+type BuilderFactory = fn() -> tauri::Builder<tauri::Wry>;
+type Runner = fn(tauri::Builder<tauri::Wry>);
+
+const DEFAULT_BUILDER_FACTORY: BuilderFactory = build_app;
+const DEFAULT_RUNNER: Runner = run_builder;
+
+fn run_hooks() -> &'static Mutex<(BuilderFactory, Runner)> {
+    static RUN_HOOKS: OnceLock<Mutex<(BuilderFactory, Runner)>> = OnceLock::new();
+
+    RUN_HOOKS.get_or_init(|| Mutex::new((DEFAULT_BUILDER_FACTORY, DEFAULT_RUNNER)))
+}
+
 pub fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
@@ -26,7 +40,17 @@ pub fn run_with(
     runner(builder_factory());
 }
 
+pub fn set_run_hooks(builder_factory: BuilderFactory, runner: Runner) {
+    *run_hooks().lock().expect("run hooks lock poisoned") = (builder_factory, runner);
+}
+
+pub fn reset_run_hooks() {
+    set_run_hooks(DEFAULT_BUILDER_FACTORY, DEFAULT_RUNNER);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    run_with(build_app, run_builder);
+    let (builder_factory, runner) = *run_hooks().lock().expect("run hooks lock poisoned");
+
+    run_with(builder_factory, runner);
 }

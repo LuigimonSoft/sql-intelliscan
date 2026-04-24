@@ -36,3 +36,4 @@ styles.css
 dist/*.*
 dist/index.html
 dist/styles-*.css
+backend-coverage.json

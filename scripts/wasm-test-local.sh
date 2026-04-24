@@ -164,4 +164,4 @@ echo "Using wasm runner: $WASM_RUNNER"
 export CHROMEDRIVER="$MATCHED_CHROMEDRIVER"
 export CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER="$WASM_RUNNER"
 
-exec cargo test --target wasm32-unknown-unknown --test frontend "$@"
+exec cargo test --target wasm32-unknown-unknown --test frontend --test integration "$@"

@@ -2,7 +2,7 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use sql_intelliscan_lib::{build_app, greet, run_with};
+use sql_intelliscan_lib::{build_app, greet, reset_run_hooks, run, run_with, set_run_hooks};
 
 #[test]
 fn GivenValidName_WhenGreetIsCalled_ThenMessage_ShouldIncludeNameAndBackendOrigin() {
@@ -42,4 +42,26 @@ fn GivenInjectedRunner_WhenRunWithIsCalled_ThenBackend_ShouldDelegateExecutionWi
     run_with(build_app, fake_runner);
 
     assert!(RUNNER_CALLED.load(Ordering::SeqCst));
+}
+
+#[test]
+fn GivenRunHooksOverride_WhenRunIsCalled_ThenBackend_ShouldUseInjectedBuilderAndRunner() {
+    static RUNNER_CALLED: AtomicBool = AtomicBool::new(false);
+
+    fn fake_builder() -> tauri::Builder<tauri::Wry> {
+        build_app()
+    }
+
+    fn fake_runner(_builder: tauri::Builder<tauri::Wry>) {
+        RUNNER_CALLED.store(true, Ordering::SeqCst);
+    }
+
+    RUNNER_CALLED.store(false, Ordering::SeqCst);
+    set_run_hooks(fake_builder, fake_runner);
+
+    run();
+
+    assert!(RUNNER_CALLED.load(Ordering::SeqCst));
+
+    reset_run_hooks();
 }
