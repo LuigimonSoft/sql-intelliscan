@@ -39,7 +39,7 @@ jobs:
       - name: Frontend wasm tests
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/sql-intelliscan-wasm-target
-        run: ./scripts/wasm-test-local.sh
+        run: bash ./scripts/wasm-test-local.sh
       - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin
       - name: Backend coverage
