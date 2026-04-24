@@ -23,6 +23,7 @@ jobs:
           curl \
           wget \
           file \
+          unzip \
           libxdo-dev \
           libssl-dev \
           libayatana-appindicator3-dev \
@@ -33,12 +34,12 @@ jobs:
         run: cargo install create-tauri-app --locked
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.0.0" --locked
-      - name: Install wasm-pack
-        uses: jetli/wasm-pack-action@v0.4.0
       - name: Test
         run: cargo test 
       - name: Frontend wasm tests
-        run: CHROMEDRIVER=$(which chromedriver) wasm-pack test --headless --chrome -- --test frontend
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/sql-intelliscan-wasm-target
+        run: ./scripts/wasm-test-local.sh
       - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin
       - name: Backend coverage

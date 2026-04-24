@@ -6,14 +6,6 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP_ROOT="${TMPDIR:-/tmp}"
 CACHE_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/sql-intelliscan"
 
-# Local wasm test artifacts on the external drive can become invalid.
-# Keep the target dir on the local filesystem without affecting CI.
-export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-${TMP_ROOT%/}/sql-intelliscan-wasm-target}"
-
-cd "$ROOT_DIR"
-
-echo "Using local wasm target dir: $CARGO_TARGET_DIR"
-
 find_chrome_bin() {
   local candidate
 
@@ -44,6 +36,7 @@ chromedriver_major_version() {
   if [[ -z "$driver_bin" || ! -x "$driver_bin" ]]; then
     return 1
   fi
+
   "$driver_bin" --version | sed -E 's/.* ([0-9]+)\..*/\1/'
 }
 
@@ -120,9 +113,55 @@ resolve_chromedriver() {
   download_matching_chromedriver "$chrome_major"
 }
 
+required_wasm_bindgen_version() {
+  awk '
+    BEGIN { in_pkg = 0; found = 0 }
+    $0 == "[[package]]" { in_pkg = 1; found = 0; next }
+    in_pkg && $1 == "name" && $3 == "\"wasm-bindgen\"" { found = 1; next }
+    in_pkg && found && $1 == "version" {
+      gsub(/"/, "", $3)
+      print $3
+      exit
+    }
+  ' "$ROOT_DIR/Cargo.lock"
+}
+
+ensure_wasm_bindgen_runner() {
+  local required_version current_version
+
+  required_version="$(required_wasm_bindgen_version)"
+  if [[ -z "$required_version" ]]; then
+    echo "Could not determine wasm-bindgen version from Cargo.lock" >&2
+    return 1
+  fi
+
+  current_version="$(wasm-bindgen-test-runner --version 2>/dev/null | awk '{ print $2 }' || true)"
+  if [[ "$current_version" != "$required_version" ]]; then
+    echo "Installing wasm-bindgen-cli ${required_version}" >&2
+    cargo install --locked wasm-bindgen-cli --version "$required_version" --force >&2
+  fi
+
+  command -v wasm-bindgen-test-runner
+}
+
+cd "$ROOT_DIR"
+
+if [[ -z "${CI:-}" && -z "${CARGO_TARGET_DIR:-}" ]]; then
+  # Local wasm test artifacts on the external drive can become invalid.
+  export CARGO_TARGET_DIR="${TMP_ROOT%/}/sql-intelliscan-wasm-target"
+fi
+
+if [[ -n "${CARGO_TARGET_DIR:-}" ]]; then
+  echo "Using wasm target dir: $CARGO_TARGET_DIR"
+fi
+
 MATCHED_CHROMEDRIVER="$(resolve_chromedriver)"
 echo "Using chromedriver: $MATCHED_CHROMEDRIVER"
 
-unset CHROMEDRIVER
+WASM_RUNNER="$(ensure_wasm_bindgen_runner)"
+echo "Using wasm runner: $WASM_RUNNER"
 
-exec wasm-pack test --headless --chrome --chromedriver "$MATCHED_CHROMEDRIVER" -- --test frontend "$@"
+export CHROMEDRIVER="$MATCHED_CHROMEDRIVER"
+export CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER="$WASM_RUNNER"
+
+exec cargo test --target wasm32-unknown-unknown --test frontend "$@"
