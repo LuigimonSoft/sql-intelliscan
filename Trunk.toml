@@ -11,4 +11,4 @@ open = false
 [[hooks]]
 stage = "build"
 command = "npm"
-command_args = ["run", "tailwind:build"]
+command_arguments = ["run", "tailwind:build"]
