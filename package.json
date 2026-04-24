@@ -6,6 +6,7 @@
   "scripts": {
     "trunk:build": "node ./scripts/trunk.js build",
     "trunk:serve": "node ./scripts/trunk.js serve",
+    "test:frontend:local": "./scripts/wasm-test-local.sh",
     "tailwind:build": "tailwindcss -i ./tailwind.css -o ./styles.css --minify",
     "tailwind:watch": "tailwindcss -i ./tailwind.css -o ./styles.css --watch"
   },
