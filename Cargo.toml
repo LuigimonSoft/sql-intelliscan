@@ -19,6 +19,8 @@ csr = ["leptos/csr"]
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
+sql_intelliscan_lib = { path = "src-tauri", package = "sql-intelliscan" }
+tauri = { version = "2", features = [] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 leptos = { version = "0.8.19", features = ["ssr"] }
