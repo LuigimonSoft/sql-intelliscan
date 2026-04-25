@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TMP_ROOT="${TMPDIR:-/tmp}"
+CACHE_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/sql-intelliscan"
+
+find_chrome_bin() {
+  local candidate
+
+  for candidate in \
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+    "$(command -v google-chrome 2>/dev/null || true)" \
+    "$(command -v chromium 2>/dev/null || true)" \
+    "$(command -v chromium-browser 2>/dev/null || true)"
+  do
+    if [[ -n "$candidate" && -x "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+chrome_major_version() {
+  local chrome_bin version
+  chrome_bin="$(find_chrome_bin)" || return 1
+  version="$("$chrome_bin" --version)"
+  printf '%s\n' "$version" | sed -E 's/.* ([0-9]+)\..*/\1/'
+}
+
+chromedriver_major_version() {
+  local driver_bin="${1:-}"
+  if [[ -z "$driver_bin" || ! -x "$driver_bin" ]]; then
+    return 1
+  fi
+
+  "$driver_bin" --version | sed -E 's/.* ([0-9]+)\..*/\1/'
+}
+
+download_matching_chromedriver() {
+  local chrome_major="$1"
+  local platform latest_release archive_url cache_dir zip_path
+  local uname_s uname_m
+
+  uname_s="$(uname -s)"
+  uname_m="$(uname -m)"
+
+  case "$uname_s" in
+    Darwin)
+      case "$uname_m" in
+        arm64) platform="mac-arm64" ;;
+        x86_64) platform="mac-x64" ;;
+        *) echo "Unsupported macOS architecture: $uname_m" >&2; return 1 ;;
+      esac
+      ;;
+    Linux)
+      case "$uname_m" in
+        x86_64) platform="linux64" ;;
+        aarch64|arm64) platform="linux-arm64" ;;
+        *) echo "Unsupported Linux architecture: $uname_m" >&2; return 1 ;;
+      esac
+      ;;
+    *)
+      echo "Unsupported OS for local chromedriver download: $uname_s" >&2
+      return 1
+      ;;
+  esac
+
+  latest_release="$(curl -fsSL "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_${chrome_major}")"
+  cache_dir="${CACHE_ROOT}/chromedriver/${latest_release}-${platform}"
+
+  if [[ ! -x "${cache_dir}/chromedriver-${platform}/chromedriver" ]]; then
+    mkdir -p "$cache_dir"
+    zip_path="${cache_dir}/chromedriver.zip"
+    archive_url="https://storage.googleapis.com/chrome-for-testing-public/${latest_release}/${platform}/chromedriver-${platform}.zip"
+    echo "Downloading matching chromedriver ${latest_release} for ${platform}" >&2
+    curl -fsSL "$archive_url" -o "$zip_path"
+    unzip -oq "$zip_path" -d "$cache_dir"
+  fi
+
+  printf '%s\n' "${cache_dir}/chromedriver-${platform}/chromedriver"
+}
+
+resolve_chromedriver() {
+  local chrome_major system_driver system_major
+
+  chrome_major="$(chrome_major_version)" || {
+    echo "Chrome not found. Install Google Chrome or set CHROMEDRIVER manually." >&2
+    return 1
+  }
+
+  if [[ -n "${CHROMEDRIVER:-}" && -x "${CHROMEDRIVER}" ]]; then
+    system_driver="$CHROMEDRIVER"
+  elif command -v chromedriver >/dev/null 2>&1; then
+    system_driver="$(command -v chromedriver)"
+  else
+    system_driver=""
+  fi
+
+  system_major="$(chromedriver_major_version "$system_driver" || true)"
+  if [[ -n "$system_driver" && "$system_major" == "$chrome_major" ]]; then
+    printf '%s\n' "$system_driver"
+    return 0
+  fi
+
+  if [[ -n "$system_driver" ]]; then
+    echo "Ignoring system chromedriver ${system_major:-unknown}; Chrome major is ${chrome_major}" >&2
+  fi
+
+  download_matching_chromedriver "$chrome_major"
+}
+
+required_wasm_bindgen_version() {
+  awk '
+    BEGIN { in_pkg = 0; found = 0 }
+    $0 == "[[package]]" { in_pkg = 1; found = 0; next }
+    in_pkg && $1 == "name" && $3 == "\"wasm-bindgen\"" { found = 1; next }
+    in_pkg && found && $1 == "version" {
+      gsub(/"/, "", $3)
+      print $3
+      exit
+    }
+  ' "$ROOT_DIR/Cargo.lock"
+}
+
+ensure_wasm_bindgen_runner() {
+  local required_version current_version
+
+  required_version="$(required_wasm_bindgen_version)"
+  if [[ -z "$required_version" ]]; then
+    echo "Could not determine wasm-bindgen version from Cargo.lock" >&2
+    return 1
+  fi
+
+  current_version="$(wasm-bindgen-test-runner --version 2>/dev/null | awk '{ print $2 }' || true)"
+  if [[ "$current_version" != "$required_version" ]]; then
+    echo "Installing wasm-bindgen-cli ${required_version}" >&2
+    cargo install --locked wasm-bindgen-cli --version "$required_version" --force >&2
+  fi
+
+  command -v wasm-bindgen-test-runner
+}
+
+cd "$ROOT_DIR"
+
+if [[ -z "${CI:-}" && -z "${CARGO_TARGET_DIR:-}" ]]; then
+  # Local wasm test artifacts on the external drive can become invalid.
+  export CARGO_TARGET_DIR="${TMP_ROOT%/}/sql-intelliscan-wasm-target"
+fi
+
+if [[ -n "${CARGO_TARGET_DIR:-}" ]]; then
+  echo "Using wasm target dir: $CARGO_TARGET_DIR"
+fi
+
+MATCHED_CHROMEDRIVER="$(resolve_chromedriver)"
+echo "Using chromedriver: $MATCHED_CHROMEDRIVER"
+
+WASM_RUNNER="$(ensure_wasm_bindgen_runner)"
+echo "Using wasm runner: $WASM_RUNNER"
+
+export CHROMEDRIVER="$MATCHED_CHROMEDRIVER"
+export CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER="$WASM_RUNNER"
+
+exec cargo test --target wasm32-unknown-unknown --test frontend "$@"

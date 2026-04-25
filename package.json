@@ -1,0 +1,25 @@
+{
+  "name": "sql-intelliscan-ui",
+  "version": "1.0.0",
+  "description": "UI for SQL Intelliscan",
+  "main": "index.js",
+  "scripts": {
+    "trunk:build": "node ./scripts/trunk.js build",
+    "trunk:serve": "node ./scripts/trunk.js serve",
+    "test:frontend": "bash ./scripts/wasm-test-local.sh",
+    "test:frontend:local": "bash ./scripts/wasm-test-local.sh",
+    "tailwind:build": "tailwindcss -i ./tailwind.css -o ./styles.css --minify",
+    "tailwind:watch": "tailwindcss -i ./tailwind.css -o ./styles.css --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.2.4"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.2.4"
+  }
+}

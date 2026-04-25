@@ -1,0 +1,66 @@
+name: Build and Test
+on:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Add wasm target
+        run: rustup target add wasm32-unknown-unknown
+      - name: Install system dependencies
+        run: |
+          echo "deb http://gb.archive.ubuntu.com/ubuntu jammy main" | sudo tee /etc/apt/sources.list.d/jammy.list
+          sudo apt update
+          sudo apt install -y libwebkit2gtk-4.1-dev \
+          build-essential \
+          curl \
+          wget \
+          file \
+          unzip \
+          libxdo-dev \
+          libssl-dev \
+          libayatana-appindicator3-dev \
+          librsvg2-dev \
+          libsoup-3.0-dev \
+          libjavascriptcoregtk-4.1-dev
+      - name: Install Tauri
+        run: cargo install create-tauri-app --locked
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.0.0" --locked
+      - name: Test
+        run: cargo test 
+      - name: Frontend wasm tests
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/sql-intelliscan-wasm-target
+        run: bash ./scripts/wasm-test-local.sh
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
+      - name: Frontend coverage
+        run: |
+          cargo llvm-cov clean --workspace
+          cargo llvm-cov --workspace --no-report --lib --test frontend
+          cargo llvm-cov --workspace --no-run --json > frontend-coverage.json
+          python3 ./scripts/check-coverage.py \
+            --report frontend-coverage.json \
+            --root src \
+            --exclude src/main.rs \
+            --label Frontend \
+            --min 80
+      - name: Backend coverage
+        run: |
+          cargo llvm-cov clean --workspace
+          cargo llvm-cov --workspace --no-report --test backend_contracts
+          cargo llvm-cov --workspace --no-run --json > backend-coverage.json
+          python3 ./scripts/check-coverage.py \
+            --report backend-coverage.json \
+            --root src-tauri/src \
+            --exclude src-tauri/src/main.rs \
+            --label Backend \
+            --min 80

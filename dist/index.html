@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Tauri + Leptos App</title>
+    <link rel="stylesheet" href="/styles-2c34f4fdda3856e4.css" integrity="sha384-u2I0g7klURTAXlla+tkts2mBxSVu42obOnOxAI5pzTENqGqZ5Yptl6tk7b58lilJ"/>
+    
+    
+<script type="module">
+import init, * as bindings from '/sql-intelliscan-ui-52a90b2d0eaee2ad.js';
+const wasm = await init({ module_or_path: '/sql-intelliscan-ui-52a90b2d0eaee2ad_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script>
+  <link rel="modulepreload" href="/sql-intelliscan-ui-52a90b2d0eaee2ad.js" crossorigin="anonymous" integrity="sha384-Z16hHmT/weMMUrbuIInbUl27KBaLkcyE/54C04bfIAmy6q9fDOgBVIl3bJwhBG+l"><link rel="modulepreload" href="/snippets/sql-intelliscan-ui-e1d4931d8b9b7835/inline0.js" crossorigin="anonymous" integrity="sha384-poY+1GlicM7FR0ir0k9I2vvZ1zy7PgehjdwRP9fBELMddZcXvw0y3s1uxpwbokbb"><link rel="preload" href="/sql-intelliscan-ui-52a90b2d0eaee2ad_bg.wasm" crossorigin="anonymous" integrity="sha384-AOT9j4tOyfrjU0/g/85/C3A/jrztHFjhPkuCxMyV1Cm0N/KSnnUKxzBLIfuaR5dN" as="fetch" type="application/wasm"></head>
+  <body></body>
+</html>
