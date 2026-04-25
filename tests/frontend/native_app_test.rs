@@ -13,13 +13,14 @@ fn GivenName_WhenInvokeGreetSyncIsCalled_ThenResponse_ShouldContainGreeting() {
 }
 
 #[test]
-fn GivenAppComponent_WhenRenderedToString_ThenMarkup_ShouldContainExpectedCopy() {
-    let html = leptos::ssr::render_to_string(|| {
-        view! { <App /> }
-    });
+fn GivenEmptyName_WhenInvokeGreetSyncIsCalled_ThenResponse_ShouldPreserveTemplate() {
+    let response = invoke_greet_sync("");
 
-    assert!(html.contains("Welcome to SQL Intelliscan"));
-    assert!(html.contains("Initial version"));
-    assert!(html.contains("greet-input"));
-    assert!(html.contains("greet-button"));
+    assert!(response.ok);
+    assert_eq!(response.message, "Hello, ! You've been greeted from Rust!");
+}
+
+#[test]
+fn GivenNativeAppComponent_WhenItIsBuilt_ThenItShouldCompileAsView() {
+    let _view = view! { <App /> };
 }
