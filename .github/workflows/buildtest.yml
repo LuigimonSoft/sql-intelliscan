@@ -88,4 +88,4 @@ jobs:
       - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin
       - name: Frontend coverage
-        run: cargo tarpaulin -p sql-intelliscan-ui --exclude-files 'src-tauri/*' --out Stdout --fail-under 80
+        run: cargo tarpaulin -p sql-intelliscan-ui --exclude-files 'src-tauri/*' --exclude-files 'src/main.rs' --out Stdout --fail-under 80

@@ -7,9 +7,9 @@ use wasm_bindgen_futures::JsFuture;
 use web_sys::window;
 
 #[derive(Deserialize, Serialize)]
-struct GreetResponse {
-    ok: bool,
-    message: String,
+pub struct GreetResponse {
+    pub ok: bool,
+    pub message: String,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -92,11 +92,16 @@ async fn invoke_greet(name: &str) -> GreetResponse {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-async fn invoke_greet(name: &str) -> GreetResponse {
+pub fn invoke_greet_sync(name: &str) -> GreetResponse {
     GreetResponse {
         ok: true,
         message: format!("Hello, {}! You've been greeted from Rust!", name),
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn invoke_greet(name: &str) -> GreetResponse {
+    invoke_greet_sync(name)
 }
 
 #[component]
