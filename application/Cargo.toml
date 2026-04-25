@@ -1,0 +1,6 @@
+[package]
+name = "sql-intelliscan-application"
+version = "0.1.0"
+description = "Application services and use-case orchestration for SQL Intelliscan"
+authors = ["Luis Carlos"]
+edition = "2021"

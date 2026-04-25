@@ -29,7 +29,17 @@ sql_intelliscan_lib = { path = "src-tauri", package = "sql-intelliscan" }
 tauri = { version = "2", features = [] }
 
 [workspace]
-members = ["src-tauri"]
+members = [
+    "src-tauri",
+    "shared",
+    "business",
+    "repository",
+    "persistence",
+    "integration",
+    "infrastructure",
+    "application",
+    "presentation",
+]
 
 [[test]]
 name = "frontend"

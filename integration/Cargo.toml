@@ -1,0 +1,6 @@
+[package]
+name = "sql-intelliscan-integration"
+version = "0.1.0"
+description = "External service integrations and adapters for SQL Intelliscan"
+authors = ["Luis Carlos"]
+edition = "2021"

@@ -1,0 +1,6 @@
+[package]
+name = "sql-intelliscan-infrastructure"
+version = "0.1.0"
+description = "Infrastructure concerns: configuration, logging, and platform services for SQL Intelliscan"
+authors = ["Luis Carlos"]
+edition = "2021"

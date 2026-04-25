@@ -1,0 +1,6 @@
+[package]
+name = "sql-intelliscan-presentation"
+version = "0.1.0"
+description = "Presentation layer: commands, controllers, and view models for SQL Intelliscan"
+authors = ["Luis Carlos"]
+edition = "2021"

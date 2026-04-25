@@ -1,0 +1,6 @@
+[package]
+name = "sql-intelliscan-business"
+version = "0.1.0"
+description = "Business logic, domain rules and analyzers for SQL Intelliscan"
+authors = ["Luis Carlos"]
+edition = "2021"

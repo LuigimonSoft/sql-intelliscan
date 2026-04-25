@@ -1,0 +1,6 @@
+[package]
+name = "sql-intelliscan-repository"
+version = "0.1.0"
+description = "Repository abstractions and data access interfaces for SQL Intelliscan"
+authors = ["Luis Carlos"]
+edition = "2021"

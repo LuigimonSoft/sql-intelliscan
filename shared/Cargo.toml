@@ -1,0 +1,6 @@
+[package]
+name = "sql-intelliscan-shared"
+version = "0.1.0"
+description = "Shared utilities, common types and cross-cutting concerns for SQL Intelliscan"
+authors = ["Luis Carlos"]
+edition = "2021"

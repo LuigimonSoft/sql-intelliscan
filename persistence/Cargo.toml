@@ -1,0 +1,6 @@
+[package]
+name = "sql-intelliscan-persistence"
+version = "0.1.0"
+description = "Database access and persistence implementation for SQL Intelliscan"
+authors = ["Luis Carlos"]
+edition = "2021"
