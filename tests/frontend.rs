@@ -1,8 +1,3 @@
-#[cfg(target_arch = "wasm32")]
-#[path = "frontend/app_test.rs"]
-mod app;
+#![allow(non_snake_case)]
 
-
-#[cfg(not(target_arch = "wasm32"))]
-#[path = "frontend/native_app_test.rs"]
-mod native_app_test;
+include!(concat!(env!("OUT_DIR"), "/frontend_test_modules.rs"));

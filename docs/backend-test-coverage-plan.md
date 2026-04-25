@@ -1,60 +1,63 @@
-# Backend unit tests (Tauro/Tauri) and 80% CI coverage
+# Backend and frontend tests with 80% CI coverage
 
-This project validates backend coverage in CI using only backend contract tests from `tests/backend` and backend source files under `src-tauri/src`.
+This project validates frontend and backend line coverage in CI with `cargo llvm-cov` and `scripts/check-coverage.py`.
 
 ## What CI enforces today
 
+The workflow computes frontend line coverage with:
+
+- `cargo llvm-cov clean --workspace`
+- `cargo llvm-cov --workspace --no-report --lib --test frontend`
+- `cargo llvm-cov --workspace --no-run --json > frontend-coverage.json`
+
+It filters coverage to `src`, excludes `src/main.rs`, and fails below `80%`.
+
 The workflow computes backend line coverage with:
 
-- `cargo llvm-cov clean --workspace` + two backend-only test runs (`--test backend` and `--test backend_contracts`) + `cargo llvm-cov --workspace --no-run --json`
+- `cargo llvm-cov clean --workspace`
+- `cargo llvm-cov --workspace --no-report --test backend_contracts`
+- `cargo llvm-cov --workspace --no-run --json > backend-coverage.json`
 
-Then it dynamically filters coverage entries to files under `src-tauri/src` and fails when combined line coverage is below `80.0%`.
+It filters coverage to `src-tauri/src`, excludes `src-tauri/src/main.rs`, and fails below `80%`.
 
-Reference: `.github/workflows/buildtest.yml` (step **Backend coverage**).
+Reference: `.github/workflows/buildtest.yml` (steps **Frontend coverage** and **Backend coverage**).
 
-## Current local verification (2026-04-24)
+## Current local verification (2026-04-25)
 
-Measured locally with the same backend metric used by CI:
+Measured locally with the same metrics used by CI:
 
-- `src-tauri/src/lib.rs`: `77.78%` (28/36)
-- `src-tauri/src/main.rs`: `87.50%` (21/24)
-- **Combined backend coverage**: `81.67%` (49/60)
+- **Frontend coverage**: `89.13%` (41/46)
+- **Backend coverage**: `84.48%` (49/58)
 
-So today the backend passes the CI requirement (`>= 80%`), with a margin of `+1.67pp`.
+So today both ends pass the CI requirement (`>= 80%`).
 
 ## Why this is dynamic now
 
 - Backend tests are authored under `tests/backend`.
 - `src-tauri/build.rs` auto-discovers `*.rs` under `tests/backend` and generates include modules for `src-tauri/tests/backend_contracts.rs`.
 - Adding a new backend test file under `tests/backend` no longer requires changes to `Cargo.toml` or workflow file lists.
+- The generated Tauri/bootstrap `main.rs` files are excluded from coverage gates; behavior is checked through the library entry points.
 
-## Suggested local command for backend-only gate
+## Suggested local commands
 
 ```bash
 cargo llvm-cov clean --workspace
-cargo llvm-cov --workspace --no-report --test backend
+cargo llvm-cov --workspace --no-report --lib --test frontend
+cargo llvm-cov --workspace --no-run --json > frontend-coverage.json
+python3 ./scripts/check-coverage.py \
+  --report frontend-coverage.json \
+  --root src \
+  --exclude src/main.rs \
+  --label Frontend \
+  --min 80
+
+cargo llvm-cov clean --workspace
 cargo llvm-cov --workspace --no-report --test backend_contracts
 cargo llvm-cov --workspace --no-run --json > backend-coverage.json
-python3 - <<'PY'
-import json
-import pathlib
-import sys
-
-report = json.loads(pathlib.Path("backend-coverage.json").read_text())
-files = report["data"][0]["files"]
-backend_root = pathlib.Path("src-tauri/src").resolve()
-
-backend = []
-for f in files:
-    file_path = pathlib.Path(f["filename"]).resolve()
-    if backend_root in file_path.parents:
-        backend.append(f)
-
-count = sum(f["summary"]["lines"]["count"] for f in backend)
-covered = sum(f["summary"]["lines"]["covered"] for f in backend)
-coverage = (covered / count) * 100 if count else 0.0
-print(f"Backend coverage: {coverage:.2f}% ({covered}/{count})")
-if coverage < 80.0:
-    sys.exit("Backend coverage is below 80%")
-PY
+python3 ./scripts/check-coverage.py \
+  --report backend-coverage.json \
+  --root src-tauri/src \
+  --exclude src-tauri/src/main.rs \
+  --label Backend \
+  --min 80
 ```

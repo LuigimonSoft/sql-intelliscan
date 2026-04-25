@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 
 use std::sync::atomic::{AtomicBool, Ordering};
+
 use sql_intelliscan_lib::{
     reset_backend_runner, run_application, set_backend_runner, start_application,
 };

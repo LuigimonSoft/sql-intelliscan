@@ -25,6 +25,9 @@ const projectDist = path.resolve("dist");
 const trunkDist =
   process.env.TRUNK_BUILD_DIST ??
   path.join(os.tmpdir(), "sql_intelliscan-trunk-dist");
+const trunkTarget =
+  process.env.CARGO_TARGET_DIR ??
+  path.join(os.tmpdir(), "sql_intelliscan-trunk-target");
 const stagePath = path.join(trunkDist, ".stage");
 
 run().catch((error) => {
@@ -33,14 +36,26 @@ run().catch((error) => {
 });
 
 async function run() {
+  await removeAppleDouble(path.join(trunkTarget, "wasm-bindgen"));
+  await runTailwindBuild();
+
+  if (mode === "serve") {
+    await resetDistRoots();
+    const buildExitCode = await runTrunk("build", trunkDist);
+    if (buildExitCode !== 0) {
+      process.exit(buildExitCode ?? 1);
+    }
+
+    await finalizeProjectDist();
+    process.exit(await runTrunk("serve", trunkDist));
+  }
+
   await resetDistRoots();
-  const exitCode = await runTrunk();
+  const exitCode = await runTrunk("build", trunkDist);
 
   // On success, clean any AppleDouble files from the final dist just in case.
   if (exitCode === 0) {
-    await removeAppleDouble(trunkDist);
-    await syncToProjectDist();
-    await removeAppleDouble(projectDist);
+    await finalizeProjectDist();
     return;
   }
 
@@ -62,7 +77,33 @@ async function run() {
   await removeAppleDouble(trunkDist);
   await syncToProjectDist();
   await removeAppleDouble(projectDist);
+  await sanitizeHtmlReferences(projectDist);
   await fs.rm(stagePath, { recursive: true, force: true });
+}
+
+function runTailwindBuild() {
+  return new Promise((resolve, reject) => {
+    const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+    const child = spawn(npm, ["run", "tailwind:build"], {
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        NO_COLOR: "true",
+      },
+    });
+
+    child.on("exit", (code, signal) => {
+      if (signal) {
+        process.kill(process.pid, signal);
+      }
+
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`tailwind:build failed with exit code ${code ?? 1}`));
+      }
+    });
+  });
 }
 
 async function resetDistRoots() {
@@ -72,13 +113,15 @@ async function resetDistRoots() {
   await fs.mkdir(projectDist, { recursive: true });
 }
 
-function runTrunk() {
+function runTrunk(trunkMode, dist) {
   return new Promise((resolve) => {
-    const child = spawn("trunk", [mode, "--dist", trunkDist], {
+    const child = spawn("trunk", [trunkMode, "--dist", dist], {
       stdio: "inherit",
       env: {
         ...process.env,
+        CARGO_TARGET_DIR: trunkTarget,
         COPYFILE_DISABLE: "1",
+        NO_COLOR: "true",
       },
     });
 
@@ -89,6 +132,13 @@ function runTrunk() {
       resolve(code ?? 1);
     });
   });
+}
+
+async function finalizeProjectDist() {
+  await removeAppleDouble(trunkDist);
+  await syncToProjectDist();
+  await removeAppleDouble(projectDist);
+  await sanitizeHtmlReferences(projectDist);
 }
 
 async function copyStageIntoDist() {
@@ -156,6 +206,21 @@ async function removeAppleDouble(root) {
       }
     })
   );
+}
+
+async function sanitizeHtmlReferences(root) {
+  const indexPath = path.join(root, "index.html");
+  if (!(await exists(indexPath))) return;
+
+  const html = await fs.readFile(indexPath, "utf8");
+  const sanitized = html.replace(
+    /<link[^>]+href="[^"]*\/\._[^"]+"[^>]*>/g,
+    ""
+  );
+
+  if (sanitized !== html) {
+    await fs.writeFile(indexPath, sanitized);
+  }
 }
 
 async function exists(target) {
