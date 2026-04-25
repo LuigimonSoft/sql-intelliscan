@@ -2,13 +2,8 @@
 target = "./index.html"
 
 [watch]
-ignore = ["./src-tauri"]
+ignore = ["./src-tauri", "./dist", "./styles.css"]
 
 [serve]
 port = 1420
 open = false
-
-[[hooks]]
-stage = "build"
-command = "npm"
-command_arguments = ["run", "tailwind:build"]

@@ -2,8 +2,9 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-#[path = "../../../src-tauri/src/main.rs"]
-mod backend_main;
+use sql_intelliscan_lib::{
+    reset_backend_runner, run_application, set_backend_runner, start_application,
+};
 
 #[test]
 fn GivenBackendBootstrapper_WhenRunApplicationIsCalled_ThenMain_ShouldDelegateToInjectedRunner() {
@@ -14,7 +15,7 @@ fn GivenBackendBootstrapper_WhenRunApplicationIsCalled_ThenMain_ShouldDelegateTo
     }
 
     BACKEND_RUNNER_CALLED.store(false, Ordering::SeqCst);
-    backend_main::run_application(fake_backend_runner);
+    run_application(fake_backend_runner);
 
     assert!(BACKEND_RUNNER_CALLED.load(Ordering::SeqCst));
 }
@@ -28,11 +29,11 @@ fn GivenBackendRunnerOverride_WhenStartApplicationIsCalled_ThenMain_ShouldUseInj
     }
 
     BACKEND_RUNNER_CALLED.store(false, Ordering::SeqCst);
-    backend_main::set_backend_runner(fake_backend_runner);
+    set_backend_runner(fake_backend_runner);
 
-    backend_main::start_application();
+    start_application();
 
     assert!(BACKEND_RUNNER_CALLED.load(Ordering::SeqCst));
 
-    backend_main::reset_backend_runner();
+    reset_backend_runner();
 }

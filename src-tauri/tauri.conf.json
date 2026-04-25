@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.luigimon.sql-intelliscan",
   "build": {
-    "beforeDevCommand": "trunk serve",
-    "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "trunk build",
+    "beforeDevCommand": "npm run trunk:serve",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run trunk:build",
     "frontendDist": "../dist"
   },
   "app": {

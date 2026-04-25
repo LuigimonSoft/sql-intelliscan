@@ -1,7 +1,3 @@
-#![cfg(not(target_arch = "wasm32"))]
+#![allow(non_snake_case)]
 
-#[path = "backend/lib/mod.rs"]
-mod lib;
-
-#[path = "backend/main/mod.rs"]
-mod main;
+include!(concat!(env!("OUT_DIR"), "/backend_test_modules.rs"));
