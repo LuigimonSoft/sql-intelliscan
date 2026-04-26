@@ -1,3 +1,6 @@
-mod services;
+pub mod contracts;
+pub mod errors;
+pub mod models;
+pub mod use_cases;
 
-pub use services::{greet, GreetingService};
+pub use use_cases::{greet, GreetingService};

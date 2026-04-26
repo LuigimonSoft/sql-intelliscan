@@ -1,8 +1,6 @@
 use sql_intelliscan_common::backend_origin;
 
-pub trait BackendMetadataRepository {
-    fn origin(&self) -> &'static str;
-}
+use crate::contracts::BackendMetadataRepository;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct StaticBackendMetadataRepository;

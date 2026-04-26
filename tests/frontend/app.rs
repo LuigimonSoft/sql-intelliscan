@@ -139,6 +139,12 @@ fn GivenNonEmptyName_WhenShouldSendGreetIsCalled_ThenSubmission_ShouldBeAccepted
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+fn GivenWhitespaceName_WhenShouldSendGreetIsCalled_ThenSubmission_ShouldBeRejected() {
+    assert!(!should_send_greet("   \t\n"));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
 fn GivenEmptyName_WhenGreetMessageIsBuilt_ThenMessage_ShouldBeIgnored() {
     let message = futures::executor::block_on(greet_message(""));
 
@@ -168,6 +174,30 @@ fn GivenEmptyName_WhenSyncGreetMessageIsBuilt_ThenMessage_ShouldBeIgnored() {
 #[test]
 fn GivenNonEmptyName_WhenSyncGreetMessageIsBuilt_ThenMessage_ShouldUseTauriMock() {
     let message = greet_message_sync("Frontend");
+
+    assert_eq!(
+        message,
+        Some("Hello, Frontend! You've been greeted from Rust!".to_string())
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn GivenNameWithLeadingAndTrailingWhitespace_WhenSyncGreetMessageIsBuilt_ThenMessage_ShouldUseTrimmedValue(
+) {
+    let message = greet_message_sync("  Frontend  ");
+
+    assert_eq!(
+        message,
+        Some("Hello, Frontend! You've been greeted from Rust!".to_string())
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn GivenNameWithLeadingAndTrailingWhitespace_WhenGreetMessageIsBuilt_ThenMessage_ShouldUseTrimmedValue()
+{
+    let message = futures::executor::block_on(greet_message("  Frontend  "));
 
     assert_eq!(
         message,

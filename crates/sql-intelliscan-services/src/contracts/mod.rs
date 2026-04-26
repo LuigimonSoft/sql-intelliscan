@@ -1,0 +1,3 @@
+mod backend_metadata_repository_contract;
+
+pub use backend_metadata_repository_contract::BackendMetadataRepository;
