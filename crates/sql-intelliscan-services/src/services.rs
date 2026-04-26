@@ -1,4 +1,5 @@
 use sql_intelliscan_repository::BackendMetadataRepository;
+use sql_intelliscan_repository::StaticBackendMetadataRepository;
 
 #[derive(Debug, Clone, Copy)]
 pub struct GreetingService<R> {
@@ -20,4 +21,8 @@ where
             self.repository.origin()
         )
     }
+}
+
+pub fn greet(name: &str) -> String {
+    GreetingService::new(StaticBackendMetadataRepository).greet(name)
 }
