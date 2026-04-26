@@ -1,5 +1,8 @@
 use std::sync::{Mutex, OnceLock};
 
+use sql_intelliscan_repository::StaticBackendMetadataRepository;
+use sql_intelliscan_services::GreetingService;
+
 type BuilderFactory = fn() -> tauri::Builder<tauri::Wry>;
 type Runner = fn(tauri::Builder<tauri::Wry>);
 type BackendRunner = fn();
@@ -21,7 +24,7 @@ fn backend_runner() -> &'static Mutex<BackendRunner> {
 }
 
 pub fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+    GreetingService::new(StaticBackendMetadataRepository).greet(name)
 }
 
 #[tauri::command]
