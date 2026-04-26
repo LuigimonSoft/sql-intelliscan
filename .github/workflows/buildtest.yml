@@ -36,6 +36,11 @@ jobs:
         run: cargo install tauri-cli --version "^2.0.0" --locked
       - name: Test
         run: cargo test 
+      - name: Crate layer tests
+        run: |
+          cargo test -p sql-intelliscan-common
+          cargo test -p sql-intelliscan-repository
+          cargo test -p sql-intelliscan-services
       - name: Frontend wasm tests
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/sql-intelliscan-wasm-target
@@ -63,4 +68,32 @@ jobs:
             --root src-tauri/src \
             --exclude src-tauri/src/main.rs \
             --label Backend \
+            --min 80
+      - name: Crate layer coverage
+        run: |
+          cargo llvm-cov clean --workspace
+          cargo llvm-cov -p sql-intelliscan-common --no-report
+          cargo llvm-cov -p sql-intelliscan-common --no-run --json > common-coverage.json
+          python3 ./scripts/check-coverage.py \
+            --report common-coverage.json \
+            --root crates/sql-intelliscan-common/src \
+            --label Common \
+            --min 80
+
+          cargo llvm-cov clean --workspace
+          cargo llvm-cov -p sql-intelliscan-repository --no-report
+          cargo llvm-cov -p sql-intelliscan-repository --no-run --json > repository-coverage.json
+          python3 ./scripts/check-coverage.py \
+            --report repository-coverage.json \
+            --root crates/sql-intelliscan-repository/src \
+            --label Repository \
+            --min 80
+
+          cargo llvm-cov clean --workspace
+          cargo llvm-cov -p sql-intelliscan-services --no-report
+          cargo llvm-cov -p sql-intelliscan-services --no-run --json > services-coverage.json
+          python3 ./scripts/check-coverage.py \
+            --report services-coverage.json \
+            --root crates/sql-intelliscan-services/src \
+            --label Services \
             --min 80

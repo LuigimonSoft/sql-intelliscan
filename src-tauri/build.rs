@@ -50,7 +50,8 @@ fn generate_backend_contract_modules() {
         let module_name = format!("backend_contract_{}", to_module_name(&file));
         generated.push_str(&format!(
             "#[path = r#\"{}\"#]\nmod {};\n\n",
-            file.display(), module_name
+            file.display(),
+            module_name
         ));
     }
 

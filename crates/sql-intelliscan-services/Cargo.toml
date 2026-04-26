@@ -1,0 +1,7 @@
+[package]
+name = "sql-intelliscan-services"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sql-intelliscan-repository = { path = "../sql-intelliscan-repository" }
