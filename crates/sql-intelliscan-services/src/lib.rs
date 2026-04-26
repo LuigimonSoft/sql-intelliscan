@@ -1,3 +1,3 @@
 mod services;
 
-pub use services::GreetingService;
+pub use services::{greet, GreetingService};

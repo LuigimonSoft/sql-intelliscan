@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use sql_intelliscan_repository::BackendMetadataRepository;
-use sql_intelliscan_services::GreetingService;
+use sql_intelliscan_services::{greet, GreetingService};
 
 struct TestBackendMetadataRepository;
 
@@ -18,5 +18,13 @@ fn GivenRepositoryDouble_WhenGreetingIsRequested_ThenService_ShouldUseRepository
     assert_eq!(
         service.greet("Carlos"),
         "Hello, Carlos! You've been greeted from TestBackend!"
+    );
+}
+
+#[test]
+fn GivenDefaultServiceFacade_WhenGreetingIsRequested_ThenIt_ShouldResolveRepositoryInternally() {
+    assert_eq!(
+        greet("Carlos"),
+        "Hello, Carlos! You've been greeted from Rust!"
     );
 }
