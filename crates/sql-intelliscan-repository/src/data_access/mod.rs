@@ -1,0 +1,3 @@
+mod static_backend_metadata_repository;
+
+pub use static_backend_metadata_repository::StaticBackendMetadataRepository;

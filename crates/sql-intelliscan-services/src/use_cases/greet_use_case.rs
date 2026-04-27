@@ -1,5 +1,6 @@
-use sql_intelliscan_repository::BackendMetadataRepository;
 use sql_intelliscan_repository::StaticBackendMetadataRepository;
+
+use crate::contracts::BackendMetadataRepository;
 
 #[derive(Debug, Clone, Copy)]
 pub struct GreetingService<R> {
