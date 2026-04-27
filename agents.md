@@ -68,12 +68,12 @@ Given<Context>_When<Action>_Then<Result>_Should<Expectation>
 
 ### 4.2 Crates
 - Each crate MUST:
-- Have its own `tests/` directory
-- Maintain independent tests and coverage
-- Crate tests:
-- Are independent from `tests/backend` and `tests/frontend`
-- Must be executed and validated separately
-- Must meet at least **80% coverage**
+  - Have its own `tests/` directory
+  - Maintain independent tests and coverage
+  - Crate tests:
+    - Are independent from `tests/backend` and `tests/frontend`
+    - Must be executed and validated separately
+    - Must meet at least **80% coverage**
 
 ---
 
