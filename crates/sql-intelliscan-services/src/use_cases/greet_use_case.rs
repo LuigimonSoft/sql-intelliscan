@@ -1,5 +1,3 @@
-use sql_intelliscan_repository::StaticBackendMetadataRepository;
-
 use crate::contracts::BackendMetadataRepository;
 
 #[derive(Debug, Clone, Copy)]
@@ -22,8 +20,4 @@ where
             self.repository.origin()
         )
     }
-}
-
-pub fn greet(name: &str) -> String {
-    GreetingService::new(StaticBackendMetadataRepository).greet(name)
 }
