@@ -25,7 +25,12 @@ impl SqlServerConnectionConfig {
         {
             let mut parts = token.splitn(2, '=');
             let key = parts.next().unwrap_or_default().trim().to_lowercase();
-            let value = parts.next().unwrap_or_default().trim();
+            let value = parts
+                .next()
+                .ok_or(RepositoryError::InvalidConfiguration(
+                    "invalid connection string segment",
+                ))?
+                .trim();
 
             match key.as_str() {
                 "server" | "data source" => {
