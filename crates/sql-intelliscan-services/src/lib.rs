@@ -1,6 +1,12 @@
+pub mod audit;
+pub mod configuration;
+pub mod connection;
 pub mod contracts;
 pub mod errors;
 pub mod models;
 pub mod use_cases;
 
-pub use use_cases::{AuditService, ConfigurationService, ConnectionService, GreetingService};
+pub use audit::AuditService;
+pub use configuration::ConfigurationService;
+pub use connection::ConnectionService;
+pub use use_cases::GreetingService;

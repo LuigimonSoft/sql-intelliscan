@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sql-intelliscan-repository = { path = "../sql-intelliscan-repository" }
+serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 futures = "0.3"
