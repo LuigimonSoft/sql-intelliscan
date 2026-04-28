@@ -3,7 +3,6 @@
 use sql_intelliscan_lib::{
     greet_command, register_handlers, validate_sql_server_connection_command,
 };
-use sql_intelliscan_services::errors::ServiceError;
 
 #[test]
 fn GivenValidName_WhenGreetCommandIsCalled_ThenMessage_ShouldIncludeNameAndBackendOrigin() {
@@ -25,5 +24,6 @@ fn GivenInvalidConnectionString_WhenValidateCommandIsCalled_ThenResult_ShouldRet
         "Server=localhost;Database=master".to_owned(),
     ));
 
-    assert_eq!(result, Err(ServiceError::InvalidConfiguration("missing username")));
+    let error = result.expect_err("expected invalid configuration error");
+    assert_eq!(format!("{error:?}"), "InvalidConfiguration(\"missing username\")");
 }
