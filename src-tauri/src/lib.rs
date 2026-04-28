@@ -3,9 +3,12 @@ mod configuration;
 mod dependency_wiring;
 mod state;
 
+pub use commands::{
+    greet_command, register_handlers, validate_sql_server_connection_command,
+};
 pub use configuration::build_app;
+pub use dependency_wiring::{greet_user, validate_sql_server_connection};
 use configuration::run_builder;
-use dependency_wiring::greet_user;
 use state::{backend_runner, run_hooks, BackendRunner, BuilderFactory, Runner};
 
 const DEFAULT_BUILDER_FACTORY: BuilderFactory = build_app;
