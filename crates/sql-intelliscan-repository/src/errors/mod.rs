@@ -1,3 +1,3 @@
 mod repository_error;
 
-pub use repository_error::RepositoryError;
+pub use repository_error::{RepositoryError, RepositoryResult};
