@@ -35,7 +35,11 @@ impl SqlServerConnectionConfig {
             match key.as_str() {
                 "server" | "data source" => {
                     let mut host_parts = value.split(',');
-                    host = host_parts.next().map(str::trim).map(str::to_owned);
+                    host = host_parts
+                        .next()
+                        .map(str::trim)
+                        .filter(|item| !item.is_empty())
+                        .map(str::to_owned);
                     if let Some(parsed_port) = host_parts
                         .next()
                         .and_then(|item| item.trim().parse::<u16>().ok())

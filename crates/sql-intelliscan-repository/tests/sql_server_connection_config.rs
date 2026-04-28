@@ -16,3 +16,16 @@ fn GivenConnectionStringWithMalformedSegment_WhenParsed_ThenResult_ShouldReturnI
         ))
     );
 }
+
+#[test]
+fn GivenConnectionStringWithEmptyServer_WhenParsed_ThenResult_ShouldReturnMissingHost()
+{
+    let result = SqlServerConnectionConfig::from_connection_string(
+        "Server=   ;User Id=sa;Password=secret;Database=master;",
+    );
+
+    assert_eq!(
+        result,
+        Err(RepositoryError::InvalidConfiguration("missing host"))
+    );
+}
