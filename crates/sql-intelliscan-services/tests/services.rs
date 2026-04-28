@@ -3,6 +3,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use sql_intelliscan_repository::{RepositoryError, RepositoryResult};
 use sql_intelliscan_services::{
     contracts::{
         AuditRepository, BackendMetadataRepository, ConfigurationRepository, ConnectionRepository,
@@ -21,8 +22,16 @@ impl BackendMetadataRepository for TestBackendMetadataRepository {
 struct TestConnectionRepository;
 
 impl ConnectionRepository for TestConnectionRepository {
-    fn can_connect(&self, connection_id: &str) -> bool {
-        connection_id == "valid-connection"
+    async fn validate_connection(&self) -> RepositoryResult<bool> {
+        Ok(true)
+    }
+}
+
+struct FailingConnectionRepository;
+
+impl ConnectionRepository for FailingConnectionRepository {
+    async fn validate_connection(&self) -> RepositoryResult<bool> {
+        Err(RepositoryError::SourceUnavailable)
     }
 }
 
@@ -63,8 +72,19 @@ fn GivenConnectionRepository_WhenValidationIsRequested_ThenService_ShouldDelegat
 {
     let service = ConnectionService::new(TestConnectionRepository);
 
-    assert!(service.validate_connection("valid-connection"));
-    assert!(!service.validate_connection("invalid-connection"));
+    let result = futures::executor::block_on(service.validate_connection());
+
+    assert_eq!(result, Ok(true));
+}
+
+#[test]
+fn GivenConnectionRepositoryFailure_WhenValidationIsRequested_ThenService_ShouldReturnRepositoryError(
+) {
+    let service = ConnectionService::new(FailingConnectionRepository);
+
+    let result = futures::executor::block_on(service.validate_connection());
+
+    assert_eq!(result, Err(RepositoryError::SourceUnavailable));
 }
 
 #[test]

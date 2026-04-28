@@ -5,4 +5,7 @@ edition = "2021"
 
 [dependencies]
 sql-intelliscan-common = { path = "../sql-intelliscan-common" }
-mssqlrust = "1.0.2" 
+mssqlrust = "1.0.2"
+
+[dev-dependencies]
+futures = "0.3"

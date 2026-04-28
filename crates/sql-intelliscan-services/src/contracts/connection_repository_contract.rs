@@ -1,3 +1,1 @@
-pub trait ConnectionRepository {
-    fn can_connect(&self, connection_id: &str) -> bool;
-}
+pub use sql_intelliscan_repository::ConnectionRepository;

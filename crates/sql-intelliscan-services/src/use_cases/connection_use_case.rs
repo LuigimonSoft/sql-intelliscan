@@ -1,3 +1,5 @@
+use sql_intelliscan_repository::RepositoryResult;
+
 use crate::contracts::ConnectionRepository;
 
 #[derive(Debug, Clone)]
@@ -13,7 +15,7 @@ where
         Self { repository }
     }
 
-    pub fn validate_connection(&self, connection_id: &str) -> bool {
-        self.repository.can_connect(connection_id)
+    pub async fn validate_connection(&self) -> RepositoryResult<bool> {
+        self.repository.validate_connection().await
     }
 }
