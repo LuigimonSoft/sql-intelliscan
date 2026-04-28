@@ -6,53 +6,59 @@ use crate::{
     models::SqlServerConnectionConfig,
 };
 
-#[allow(async_fn_in_trait)]
-pub trait MssqlScalarClient: Send + Sync {
+enum MssqlScalarClient {
+    Default,
+    #[cfg(test)]
+    Test(Box<dyn TestMssqlScalarClient>),
+}
+
+impl MssqlScalarClient {
     async fn execute_scalar(
+        &self,
+        config: MssqlConfig,
+        command: Command,
+    ) -> Result<Option<DataValue>, String> {
+        match self {
+            Self::Default => execute_scalar(config, command)
+                .await
+                .map_err(|err| err.to_string()),
+            #[cfg(test)]
+            Self::Test(client) => client.execute_scalar(config, command),
+        }
+    }
+}
+
+#[cfg(test)]
+trait TestMssqlScalarClient: Send + Sync {
+    fn execute_scalar(
         &self,
         config: MssqlConfig,
         command: Command,
     ) -> Result<Option<DataValue>, String>;
 }
 
-#[derive(Debug, Default, Clone, Copy)]
-pub struct DefaultMssqlScalarClient;
-
-impl MssqlScalarClient for DefaultMssqlScalarClient {
-    async fn execute_scalar(
-        &self,
-        config: MssqlConfig,
-        command: Command,
-    ) -> Result<Option<DataValue>, String> {
-        execute_scalar(config, command)
-            .await
-            .map_err(|err| err.to_string())
-    }
-}
-
-pub struct SqlServerConnectionRepository<C = DefaultMssqlScalarClient>
-where
-    C: MssqlScalarClient,
-{
+pub struct SqlServerConnectionRepository {
     config: SqlServerConnectionConfig,
-    client: C,
+    client: MssqlScalarClient,
 }
 
-impl SqlServerConnectionRepository<DefaultMssqlScalarClient> {
+impl SqlServerConnectionRepository {
     pub fn new(config: SqlServerConnectionConfig) -> Self {
         Self {
             config,
-            client: DefaultMssqlScalarClient,
+            client: MssqlScalarClient::Default,
         }
     }
-}
 
-impl<C> SqlServerConnectionRepository<C>
-where
-    C: MssqlScalarClient,
-{
-    pub fn with_client(config: SqlServerConnectionConfig, client: C) -> Self {
-        Self { config, client }
+    #[cfg(test)]
+    fn with_client<C>(config: SqlServerConnectionConfig, client: C) -> Self
+    where
+        C: TestMssqlScalarClient + 'static,
+    {
+        Self {
+            config,
+            client: MssqlScalarClient::Test(Box::new(client)),
+        }
     }
 
     fn to_mssql_config(&self) -> MssqlConfig {
@@ -82,10 +88,7 @@ where
     }
 }
 
-impl<C> ConnectionRepository for SqlServerConnectionRepository<C>
-where
-    C: MssqlScalarClient,
-{
+impl ConnectionRepository for SqlServerConnectionRepository {
     async fn validate_connection(&self) -> RepositoryResult<bool> {
         let command = Command::query("SELECT 1");
 
@@ -105,16 +108,15 @@ mod tests {
     use mssqlrust::{dataset::DataValue, infrastructure::mssql::MssqlConfig, Command};
 
     use crate::{
-        contracts::ConnectionRepository,
-        errors::RepositoryError,
-        models::SqlServerConnectionConfig,
-        sql_server::connection_repository::{MssqlScalarClient, SqlServerConnectionRepository},
+        contracts::ConnectionRepository, errors::RepositoryError, models::SqlServerConnectionConfig,
     };
+
+    use super::{SqlServerConnectionRepository, TestMssqlScalarClient};
 
     struct SuccessClient;
 
-    impl MssqlScalarClient for SuccessClient {
-        async fn execute_scalar(
+    impl TestMssqlScalarClient for SuccessClient {
+        fn execute_scalar(
             &self,
             _config: MssqlConfig,
             _command: Command,
@@ -125,8 +127,8 @@ mod tests {
 
     struct InvalidTypeClient;
 
-    impl MssqlScalarClient for InvalidTypeClient {
-        async fn execute_scalar(
+    impl TestMssqlScalarClient for InvalidTypeClient {
+        fn execute_scalar(
             &self,
             _config: MssqlConfig,
             _command: Command,
@@ -137,8 +139,8 @@ mod tests {
 
     struct FailingClient;
 
-    impl MssqlScalarClient for FailingClient {
-        async fn execute_scalar(
+    impl TestMssqlScalarClient for FailingClient {
+        fn execute_scalar(
             &self,
             _config: MssqlConfig,
             _command: Command,
@@ -167,6 +169,57 @@ mod tests {
         assert_eq!(config.password, "secret");
         assert_eq!(config.database, "master");
         assert!(config.trust_cert);
+    }
+
+    #[test]
+    fn GivenSqlServerConfig_WhenRepositoryIsCreated_ThenDriverConfig_ShouldBeBuilt() {
+        let repository = SqlServerConnectionRepository::new(build_config());
+
+        let _driver_config = repository.to_mssql_config();
+    }
+
+    #[test]
+    fn GivenTinyIntScalar_WhenValidationResultIsMapped_ThenResult_ShouldReturnTrue() {
+        let result =
+            SqlServerConnectionRepository::map_validation_result(Some(DataValue::TinyInt(1)));
+
+        assert_eq!(result, Ok(true));
+    }
+
+    #[test]
+    fn GivenSmallIntScalar_WhenValidationResultIsMapped_ThenResult_ShouldReturnTrue() {
+        let result =
+            SqlServerConnectionRepository::map_validation_result(Some(DataValue::SmallInt(1)));
+
+        assert_eq!(result, Ok(true));
+    }
+
+    #[test]
+    fn GivenBigIntScalar_WhenValidationResultIsMapped_ThenResult_ShouldReturnTrue() {
+        let result =
+            SqlServerConnectionRepository::map_validation_result(Some(DataValue::BigInt(1)));
+
+        assert_eq!(result, Ok(true));
+    }
+
+    #[test]
+    fn GivenEmptyScalar_WhenValidationResultIsMapped_ThenResult_ShouldReturnMappingError() {
+        let result = SqlServerConnectionRepository::map_validation_result(None);
+
+        assert_eq!(
+            result,
+            Err(RepositoryError::ResultMappingFailed("empty scalar result"))
+        );
+    }
+
+    #[test]
+    fn GivenNullScalar_WhenValidationResultIsMapped_ThenResult_ShouldReturnMappingError() {
+        let result = SqlServerConnectionRepository::map_validation_result(Some(DataValue::Null));
+
+        assert_eq!(
+            result,
+            Err(RepositoryError::ResultMappingFailed("empty scalar result"))
+        );
     }
 
     #[test]

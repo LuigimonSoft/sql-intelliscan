@@ -8,7 +8,4 @@ pub use contracts::{BackendMetadataRepository, ConnectionRepository};
 pub use data_access::StaticBackendMetadataRepository;
 pub use errors::{RepositoryError, RepositoryResult};
 pub use models::{BackendMetadata, SqlServerConnectionConfig};
-pub use sql_server::{
-    DefaultMssqlScalarClient, MssqlScalarClient, SqlServerConnectionRepository,
-    SqlServerMetadataRepository,
-};
+pub use sql_server::{SqlServerConnectionRepository, SqlServerMetadataRepository};
