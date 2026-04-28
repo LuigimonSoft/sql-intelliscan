@@ -1,1 +1,3 @@
-pub use sql_intelliscan_repository::BackendMetadataRepository;
+pub trait BackendMetadataRepository {
+    fn origin(&self) -> &'static str;
+}

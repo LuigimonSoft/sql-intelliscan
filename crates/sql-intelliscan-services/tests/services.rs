@@ -3,11 +3,12 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use sql_intelliscan_repository::{RepositoryError, RepositoryResult};
 use sql_intelliscan_services::{
     contracts::{
         AuditRepository, BackendMetadataRepository, ConfigurationRepository, ConnectionRepository,
     },
+    errors::{DataAccessError, DataAccessResult, ServiceError},
+    models::ConnectionTestResult,
     AuditService, ConfigurationService, ConnectionService, GreetingService,
 };
 
@@ -22,7 +23,7 @@ impl BackendMetadataRepository for TestBackendMetadataRepository {
 struct TestConnectionRepository;
 
 impl ConnectionRepository for TestConnectionRepository {
-    async fn validate_connection(&self) -> RepositoryResult<bool> {
+    async fn validate_connection(&self) -> DataAccessResult<bool> {
         Ok(true)
     }
 }
@@ -30,8 +31,42 @@ impl ConnectionRepository for TestConnectionRepository {
 struct FailingConnectionRepository;
 
 impl ConnectionRepository for FailingConnectionRepository {
-    async fn validate_connection(&self) -> RepositoryResult<bool> {
-        Err(RepositoryError::SourceUnavailable)
+    async fn validate_connection(&self) -> DataAccessResult<bool> {
+        Err(DataAccessError::SourceUnavailable)
+    }
+}
+
+struct QueryFailingConnectionRepository;
+
+impl ConnectionRepository for QueryFailingConnectionRepository {
+    async fn validate_connection(&self) -> DataAccessResult<bool> {
+        Err(DataAccessError::QueryExecutionFailed("timeout".to_owned()))
+    }
+}
+
+struct MappingFailingConnectionRepository;
+
+impl ConnectionRepository for MappingFailingConnectionRepository {
+    async fn validate_connection(&self) -> DataAccessResult<bool> {
+        Err(DataAccessError::ResultMappingFailed(
+            "unexpected scalar type",
+        ))
+    }
+}
+
+struct InvalidConfigurationConnectionRepository;
+
+impl ConnectionRepository for InvalidConfigurationConnectionRepository {
+    async fn validate_connection(&self) -> DataAccessResult<bool> {
+        Err(DataAccessError::InvalidConfiguration("missing host"))
+    }
+}
+
+struct FalseConnectionRepository;
+
+impl ConnectionRepository for FalseConnectionRepository {
+    async fn validate_connection(&self) -> DataAccessResult<bool> {
+        Ok(false)
     }
 }
 
@@ -72,24 +107,92 @@ fn GivenConnectionRepository_WhenValidationIsRequested_ThenService_ShouldDelegat
 {
     let service = ConnectionService::new(TestConnectionRepository);
 
+    let result = futures::executor::block_on(service.test_connection());
+
+    assert_eq!(result, Ok(ConnectionTestResult::valid()));
+}
+
+#[test]
+fn GivenConnectionRepository_WhenBooleanValidationIsRequested_ThenService_ShouldReturnBoolean() {
+    let service = ConnectionService::new(TestConnectionRepository);
+
     let result = futures::executor::block_on(service.validate_connection());
 
     assert_eq!(result, Ok(true));
 }
 
 #[test]
-fn GivenConnectionRepositoryFailure_WhenValidationIsRequested_ThenService_ShouldReturnRepositoryError(
+fn GivenConnectionRepositoryReturnsFalse_WhenValidationIsRequested_ThenService_ShouldReturnInvalidResult(
 ) {
+    let service = ConnectionService::new(FalseConnectionRepository);
+
+    let result = futures::executor::block_on(service.test_connection());
+
+    assert_eq!(result, Ok(ConnectionTestResult::invalid()));
+}
+
+#[test]
+fn GivenConnectionRepositoryFailure_WhenValidationIsRequested_ThenService_ShouldReturnServiceError()
+{
     let service = ConnectionService::new(FailingConnectionRepository);
 
-    let result = futures::executor::block_on(service.validate_connection());
+    let result = futures::executor::block_on(service.test_connection());
 
-    assert_eq!(result, Err(RepositoryError::SourceUnavailable));
+    assert_eq!(result, Err(ServiceError::SourceUnavailable));
+}
+
+#[test]
+fn GivenRepositoryQueryFailure_WhenValidationIsRequested_ThenService_ShouldNormalizeError() {
+    let service = ConnectionService::new(QueryFailingConnectionRepository);
+
+    let result = futures::executor::block_on(service.test_connection());
+
+    assert_eq!(result, Err(ServiceError::QueryExecutionFailed));
+}
+
+#[test]
+fn GivenRepositoryMappingFailure_WhenValidationIsRequested_ThenService_ShouldNormalizeError() {
+    let service = ConnectionService::new(MappingFailingConnectionRepository);
+
+    let result = futures::executor::block_on(service.test_connection());
+
+    assert_eq!(
+        result,
+        Err(ServiceError::ResultMappingFailed("unexpected scalar type"))
+    );
+}
+
+#[test]
+fn GivenRepositoryConfigurationFailure_WhenValidationIsRequested_ThenService_ShouldNormalizeError()
+{
+    let service = ConnectionService::new(InvalidConfigurationConnectionRepository);
+
+    let result = futures::executor::block_on(service.test_connection());
+
+    assert_eq!(
+        result,
+        Err(ServiceError::InvalidConfiguration("missing host"))
+    );
 }
 
 #[test]
 fn GivenAuditRepository_WhenAuditEntryIsRegistered_ThenService_ShouldPersistEntryThroughRepository()
 {
+    let entries = Rc::new(RefCell::new(Vec::new()));
+    let repository = TestAuditRepository {
+        entries: Rc::clone(&entries),
+    };
+    let service = AuditService::new(repository);
+
+    let result = service.start_audit_execution(" User logged in ");
+
+    assert_eq!(result, Ok(()));
+    assert_eq!(entries.borrow().as_slice(), ["User logged in"]);
+}
+
+#[test]
+fn GivenAuditRepository_WhenRawAuditEntryIsRegistered_ThenService_ShouldPersistEntryThroughRepository(
+) {
     let entries = Rc::new(RefCell::new(Vec::new()));
     let repository = TestAuditRepository {
         entries: Rc::clone(&entries),
@@ -102,6 +205,25 @@ fn GivenAuditRepository_WhenAuditEntryIsRegistered_ThenService_ShouldPersistEntr
 }
 
 #[test]
+fn GivenBlankAuditRequest_WhenAuditExecutionStarts_ThenService_ShouldReturnValidationError() {
+    let entries = Rc::new(RefCell::new(Vec::new()));
+    let repository = TestAuditRepository {
+        entries: Rc::clone(&entries),
+    };
+    let service = AuditService::new(repository);
+
+    let result = service.start_audit_execution(" ");
+
+    assert_eq!(
+        result,
+        Err(ServiceError::InvalidAuditRequest(
+            "request name is required"
+        ))
+    );
+    assert!(entries.borrow().is_empty());
+}
+
+#[test]
 fn GivenConfigurationRepository_WhenValueIsRequested_ThenService_ShouldReturnValueFromRepository() {
     let service = ConfigurationService::new(TestConfigurationRepository);
 
@@ -110,4 +232,28 @@ fn GivenConfigurationRepository_WhenValueIsRequested_ThenService_ShouldReturnVal
         Some("dark".to_owned())
     );
     assert_eq!(service.get_configuration_value("timezone"), None);
+}
+
+#[test]
+fn GivenConfigurationRepository_WhenConfigurationIsLoaded_ThenService_ShouldValidateAndNormalizeKey(
+) {
+    let service = ConfigurationService::new(TestConfigurationRepository);
+
+    let result = service.load_configuration_value(" theme ");
+
+    assert_eq!(result, Ok(Some("dark".to_owned())));
+}
+
+#[test]
+fn GivenBlankConfigurationKey_WhenConfigurationIsLoaded_ThenService_ShouldReturnValidationError() {
+    let service = ConfigurationService::new(TestConfigurationRepository);
+
+    let result = service.load_configuration_value(" ");
+
+    assert_eq!(
+        result,
+        Err(ServiceError::InvalidConfiguration(
+            "configuration key is required"
+        ))
+    );
 }
