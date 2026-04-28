@@ -3,12 +3,10 @@ mod configuration;
 mod dependency_wiring;
 mod state;
 
-pub use commands::{
-    greet_command, register_handlers, validate_sql_server_connection_command,
-};
+pub use commands::{greet_command, register_handlers, validate_sql_server_connection_command};
 pub use configuration::build_app;
-pub use dependency_wiring::{greet_user, validate_sql_server_connection};
 use configuration::run_builder;
+pub use dependency_wiring::{create_app_state, validate_sql_server_connection};
 use state::{backend_runner, run_hooks, BackendRunner, BuilderFactory, Runner};
 
 const DEFAULT_BUILDER_FACTORY: BuilderFactory = build_app;
@@ -16,7 +14,9 @@ const DEFAULT_RUNNER: Runner = run_builder;
 const DEFAULT_BACKEND_RUNNER: BackendRunner = run;
 
 pub fn greet(name: &str) -> String {
-    greet_user(name)
+    let state = create_app_state();
+
+    dependency_wiring::greet_user(name, &state)
 }
 
 pub fn run_with(

@@ -1,12 +1,17 @@
 #![allow(non_snake_case)]
 
-use sql_intelliscan_lib::{greet_user, validate_sql_server_connection};
+use sql_intelliscan_lib::{build_app, greet, validate_sql_server_connection};
 
 #[test]
-fn GivenValidName_WhenGreetUserIsCalled_ThenMessage_ShouldIncludeNameAndBackendOrigin() {
-    let result = greet_user("Lucía");
+fn GivenValidName_WhenGreetIsCalled_ThenMessage_ShouldIncludeNameAndBackendOrigin() {
+    let result = greet("Lucía");
 
     assert_eq!(result, "Hello, Lucía! You've been greeted from Rust!");
+}
+
+#[test]
+fn GivenBuilder_WhenBuildAppIsCalled_ThenAppStateServices_ShouldBeRegistered() {
+    let _builder = build_app();
 }
 
 #[test]

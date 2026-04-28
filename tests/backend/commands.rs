@@ -1,12 +1,10 @@
 #![allow(non_snake_case)]
 
-use sql_intelliscan_lib::{
-    greet_command, register_handlers, validate_sql_server_connection_command,
-};
+use sql_intelliscan_lib::{greet, register_handlers, validate_sql_server_connection_command};
 
 #[test]
-fn GivenValidName_WhenGreetCommandIsCalled_ThenMessage_ShouldIncludeNameAndBackendOrigin() {
-    let result = greet_command("Ana");
+fn GivenValidName_WhenGreetFunctionIsCalled_ThenMessage_ShouldIncludeNameAndBackendOrigin() {
+    let result = greet("Ana");
 
     assert_eq!(result, "Hello, Ana! You've been greeted from Rust!");
 }
