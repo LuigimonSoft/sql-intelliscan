@@ -259,4 +259,22 @@ mod tests {
             ))
         );
     }
+
+    #[test]
+    #[ignore = "Requires the real SQL Server CI fixture from scripts/sql-server/real-test-setup.sql"]
+    fn GivenRealSqlServerTable_WhenScalarIsRequested_ThenClient_ShouldReturnSeededCount() {
+        let connection_string = std::env::var("SQLSERVER_TEST_CONNECTION_STRING")
+            .expect("SQLSERVER_TEST_CONNECTION_STRING must be provided");
+        let config = SqlServerConnectionConfig::from_connection_string(&connection_string)
+            .expect("valid SQL Server connection string");
+        let repository = SqlServerConnectionRepository::new(config);
+
+        let scalar = futures::executor::block_on(repository.client.execute_scalar(
+            repository.to_mssql_config(),
+            Command::query("SELECT COUNT_BIG(*) FROM dbo.IntelliscanScalarSmokeItems"),
+        ))
+        .expect("scalar query should succeed");
+
+        assert_eq!(scalar, Some(DataValue::BigInt(3)));
+    }
 }

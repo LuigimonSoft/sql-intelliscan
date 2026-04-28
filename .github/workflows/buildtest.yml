@@ -97,3 +97,56 @@ jobs:
             --root crates/sql-intelliscan-services/src \
             --label Services \
             --min 80
+
+  real_test:
+    runs-on: ubuntu-latest
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          SA_PASSWORD: "YourStrong!Passw0rd"
+          MSSQL_SA_PASSWORD: "YourStrong!Passw0rd"
+          ACCEPT_EULA: "Y"
+        ports:
+          - 1433:1433
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        with:
+          toolchain: stable
+          components: llvm-tools-preview
+      - name: Install network tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y netcat-openbsd
+      - name: Wait for MSSQL
+        run: |
+          for i in {1..30}; do
+            nc -z localhost 1433 && echo "MSSQL is up" && break
+            echo "Waiting for MSSQL..."
+            sleep 10
+          done
+          nc -z localhost 1433
+      - name: Create real test database fixtures
+        run: |
+          docker run --rm --network host \
+            -v "$PWD/scripts/sql-server:/scripts:ro" \
+            mcr.microsoft.com/mssql-tools \
+            /opt/mssql-tools/bin/sqlcmd \
+              -S localhost,1433 \
+              -U sa \
+              -P "YourStrong!Passw0rd" \
+              -C \
+              -i /scripts/real-test-setup.sql
+      - name: Real SQL Server connection test
+        env:
+          SQLSERVER_TEST_CONNECTION_STRING: "Server=localhost,1433;User Id=sa;Password=YourStrong!Passw0rd;Database=master;TrustServerCertificate=true;"
+        run: |
+          cargo test -p sql-intelliscan-repository --test integration_sql_server -- --ignored --exact GivenConfiguredSqlServer_WhenConnectionValidationRuns_ThenRepository_ShouldReturnTrue
+      - name: Real SQL Server scalar test
+        env:
+          SQLSERVER_TEST_CONNECTION_STRING: "Server=localhost,1433;User Id=sa;Password=YourStrong!Passw0rd;Database=master;TrustServerCertificate=true;"
+        run: |
+          cargo test -p sql-intelliscan-repository GivenRealSqlServerTable_WhenScalarIsRequested_ThenClient_ShouldReturnSeededCount -- --ignored --exact
