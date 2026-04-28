@@ -14,7 +14,9 @@ fn GivenConfiguredSqlServer_WhenConnectionValidationRuns_ThenRepository_ShouldRe
         .expect("valid SQL Server connection string");
 
     let repository = SqlServerConnectionRepository::new(config);
-    let result = futures::executor::block_on(repository.validate_connection())
+    let runtime = tokio::runtime::Runtime::new().expect("Tokio runtime should start");
+    let result = runtime
+        .block_on(repository.validate_connection())
         .expect("connection validation should succeed");
 
     assert!(result);
