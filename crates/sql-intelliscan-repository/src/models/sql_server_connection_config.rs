@@ -47,9 +47,13 @@ impl SqlServerConnectionConfig {
                         port = parsed_port;
                     }
                 }
-                "user id" | "uid" | "user" => username = Some(value.to_owned()),
-                "password" | "pwd" => password = Some(value.to_owned()),
-                "database" | "initial catalog" => database = Some(value.to_owned()),
+                "user id" | "uid" | "user" => {
+                    username = (!value.is_empty()).then(|| value.to_owned())
+                }
+                "password" | "pwd" => password = (!value.is_empty()).then(|| value.to_owned()),
+                "database" | "initial catalog" => {
+                    database = (!value.is_empty()).then(|| value.to_owned())
+                }
                 "trustservercertificate" => {
                     trust_cert = matches!(value.to_ascii_lowercase().as_str(), "true" | "1" | "yes")
                 }
