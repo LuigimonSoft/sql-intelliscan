@@ -149,4 +149,4 @@ jobs:
         env:
           SQLSERVER_TEST_CONNECTION_STRING: "Server=localhost,1433;User Id=sa;Password=YourStrong!Passw0rd;Database=master;TrustServerCertificate=true;"
         run: |
-          cargo test -p sql-intelliscan-repository GivenRealSqlServerTable_WhenScalarIsRequested_ThenClient_ShouldReturnSeededCount -- --ignored --exact
+          cargo test -p sql-intelliscan-repository sql_server::connection_repository::tests::GivenRealSqlServerTable_WhenScalarIsRequested_ThenClient_ShouldReturnSeededCount -- --ignored --exact
