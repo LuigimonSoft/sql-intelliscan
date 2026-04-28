@@ -6,7 +6,7 @@ use crate::{
 };
 
 #[tauri::command]
-pub fn greet_command(name: &str, state: tauri::State<'_, AppState>) -> String {
+pub(crate) fn greet_command(name: &str, state: tauri::State<'_, AppState>) -> String {
     greet_user(name, state.inner())
 }
 
