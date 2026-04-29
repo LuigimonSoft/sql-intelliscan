@@ -1,12 +1,15 @@
 #![allow(non_snake_case)]
 
 use sql_intelliscan_lib::{
-    greet_command, register_handlers, validate_sql_server_connection_command,
+    build_app_state, greet_with_state, register_handlers,
+    validate_sql_server_connection_with_state,
 };
 
 #[test]
-fn GivenValidName_WhenGreetCommandIsCalled_ThenMessage_ShouldIncludeNameAndBackendOrigin() {
-    let result = greet_command("Ana");
+fn GivenValidName_WhenGreetCommandHandlerIsCalled_ThenMessage_ShouldIncludeNameAndBackendOrigin() {
+    let app_state = build_app_state().expect("app state should build");
+
+    let result = greet_with_state(&app_state, "Ana");
 
     assert_eq!(result, "Hello, Ana! You've been greeted from Rust!");
 }
@@ -19,9 +22,13 @@ fn GivenBuilder_WhenHandlersAreRegistered_ThenPipeline_ShouldBeComposable() {
 }
 
 #[test]
-fn GivenInvalidConnectionString_WhenValidateCommandIsCalled_ThenResult_ShouldReturnServiceError() {
-    let result = tauri::async_runtime::block_on(validate_sql_server_connection_command(
-        "Server=localhost;Database=master".to_owned(),
+fn GivenInvalidConnectionString_WhenValidateCommandHandlerIsCalled_ThenResult_ShouldReturnServiceError(
+) {
+    let app_state = build_app_state().expect("app state should build");
+
+    let result = tauri::async_runtime::block_on(validate_sql_server_connection_with_state(
+        &app_state,
+        "Server=localhost;Database=master",
     ));
 
     let error = result.expect_err("expected invalid configuration error");
