@@ -5,6 +5,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      CARGO_TARGET_DIR: ${{ runner.temp }}/sql-intelliscan-target
+      CARGO_LLVM_COV_TARGET_DIR: ${{ runner.temp }}/sql-intelliscan-llvm-cov-target
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
@@ -34,8 +37,10 @@ jobs:
         run: cargo install create-tauri-app --locked
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.0.0" --locked
+      - name: Build tests once (without running)
+        run: cargo test --workspace --no-run
       - name: Test
-        run: cargo test 
+        run: cargo test --workspace
       - name: Crate layer tests
         run: |
           cargo test -p sql-intelliscan-common
@@ -50,8 +55,8 @@ jobs:
       - name: Frontend coverage
         run: |
           cargo llvm-cov clean --workspace
-          cargo llvm-cov --workspace --no-report --lib --test frontend
-          cargo llvm-cov --workspace --no-run --json > frontend-coverage.json
+          cargo llvm-cov --workspace --no-clean --no-report --lib --test frontend
+          cargo llvm-cov --workspace --no-clean --no-run --json > frontend-coverage.json
           python3 ./scripts/check-coverage.py \
             --report frontend-coverage.json \
             --root src \
@@ -61,8 +66,8 @@ jobs:
       - name: Backend coverage
         run: |
           cargo llvm-cov clean --workspace
-          cargo llvm-cov --workspace --no-report --test backend_contracts
-          cargo llvm-cov --workspace --no-run --json > backend-coverage.json
+          cargo llvm-cov --workspace --no-clean --no-report --test backend_contracts
+          cargo llvm-cov --workspace --no-clean --no-run --json > backend-coverage.json
           python3 ./scripts/check-coverage.py \
             --report backend-coverage.json \
             --root src-tauri/src \
@@ -72,26 +77,24 @@ jobs:
       - name: Crate layer coverage
         run: |
           cargo llvm-cov clean --workspace
-          cargo llvm-cov -p sql-intelliscan-common --no-report
-          cargo llvm-cov -p sql-intelliscan-common --no-run --json > common-coverage.json
+          cargo llvm-cov -p sql-intelliscan-common --no-clean --no-report
+          cargo llvm-cov -p sql-intelliscan-common --no-clean --no-run --json > common-coverage.json
           python3 ./scripts/check-coverage.py \
             --report common-coverage.json \
             --root crates/sql-intelliscan-common/src \
             --label Common \
             --min 80
 
-          cargo llvm-cov clean --workspace
-          cargo llvm-cov -p sql-intelliscan-repository --no-report
-          cargo llvm-cov -p sql-intelliscan-repository --no-run --json > repository-coverage.json
+          cargo llvm-cov -p sql-intelliscan-repository --no-clean --no-report
+          cargo llvm-cov -p sql-intelliscan-repository --no-clean --no-run --json > repository-coverage.json
           python3 ./scripts/check-coverage.py \
             --report repository-coverage.json \
             --root crates/sql-intelliscan-repository/src \
             --label Repository \
             --min 80
 
-          cargo llvm-cov clean --workspace
-          cargo llvm-cov -p sql-intelliscan-services --no-report
-          cargo llvm-cov -p sql-intelliscan-services --no-run --json > services-coverage.json
+          cargo llvm-cov -p sql-intelliscan-services --no-clean --no-report
+          cargo llvm-cov -p sql-intelliscan-services --no-clean --no-run --json > services-coverage.json
           python3 ./scripts/check-coverage.py \
             --report services-coverage.json \
             --root crates/sql-intelliscan-services/src \
