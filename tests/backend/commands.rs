@@ -2,7 +2,7 @@
 
 use sql_intelliscan_lib::{
     build_app_state, greet_with_state, register_handlers,
-    validate_sql_server_connection_with_state, ServiceError,
+    validate_sql_server_connection_with_state, CommandErrorResponse,
 };
 
 #[test]
@@ -22,7 +22,7 @@ fn GivenBuilder_WhenHandlersAreRegistered_ThenPipeline_ShouldBeComposable() {
 }
 
 #[test]
-fn GivenInvalidConnectionString_WhenValidateCommandHandlerIsCalled_ThenResult_ShouldReturnServiceError(
+fn GivenInvalidConnectionString_WhenValidateCommandHandlerIsCalled_ThenResult_ShouldReturnFriendlyError(
 ) {
     let app_state = build_app_state().expect("app state should build");
 
@@ -32,5 +32,10 @@ fn GivenInvalidConnectionString_WhenValidateCommandHandlerIsCalled_ThenResult_Sh
     ));
 
     let error = result.expect_err("expected invalid configuration error");
-    assert_eq!(error, ServiceError::InvalidConfiguration("missing username"));
+    let mapped_error = CommandErrorResponse::from_service_error(error);
+
+    assert_eq!(
+        mapped_error.message,
+        "The provided configuration is invalid: missing username."
+    );
 }
