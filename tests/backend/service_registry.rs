@@ -10,7 +10,7 @@ fn GivenValidName_WhenGreetIsCalled_ThenMessage_ShouldIncludeNameAndBackendOrigi
 }
 
 #[test]
-fn GivenBuilder_WhenBuildAppIsCalled_ThenAppStateServices_ShouldBeRegistered() {
+fn GivenBackendBuilder_WhenAppIsComposed_ThenConfiguration_ShouldBuildWithoutRunningRuntime() {
     let _builder = build_app();
 }
 
