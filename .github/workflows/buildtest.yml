@@ -10,8 +10,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      CARGO_TARGET_DIR: ${{ runner.temp }}/sql-intelliscan-target
-      CARGO_LLVM_COV_TARGET_DIR: ${{ runner.temp }}/sql-intelliscan-llvm-cov-target
+      CARGO_TARGET_DIR: /tmp/sql-intelliscan-target
+      CARGO_LLVM_COV_TARGET_DIR: /tmp/sql-intelliscan-llvm-cov-target
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
@@ -52,7 +52,7 @@ jobs:
           cargo test -p sql-intelliscan-services
       - name: Frontend wasm tests
         env:
-          CARGO_TARGET_DIR: ${{ runner.temp }}/sql-intelliscan-wasm-target
+          CARGO_TARGET_DIR: /tmp/sql-intelliscan-wasm-target
         run: bash ./scripts/wasm-test-local.sh
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov
