@@ -10,6 +10,7 @@ pub use commands::{
 use configuration::run_builder;
 pub use configuration::{build_app, try_build_app};
 pub use dependency_wiring::{build_app_state, greet_user, validate_sql_server_connection};
+pub use sql_intelliscan_services::errors::ServiceError;
 pub use state::AppState;
 use state::{backend_runner, run_hooks, BackendRunner, BuilderFactory, Runner};
 

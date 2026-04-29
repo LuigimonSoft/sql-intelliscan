@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use sql_intelliscan_lib::build_app_state;
+use sql_intelliscan_lib::{build_app_state, ServiceError};
 
 #[test]
 fn GivenDependencyWiring_WhenAppStateIsBuilt_ThenServices_ShouldBeResolved() {
@@ -21,5 +21,5 @@ fn GivenInvalidConnectionString_WhenAppStateValidatesConnection_ThenError_Should
     );
 
     let error = result.expect_err("expected invalid configuration error");
-    assert_eq!(format!("{error:?}"), "InvalidConfiguration(\"missing username\")");
+    assert_eq!(error, ServiceError::InvalidConfiguration("missing username"));
 }

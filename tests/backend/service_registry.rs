@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use sql_intelliscan_lib::{greet_user, validate_sql_server_connection};
+use sql_intelliscan_lib::{greet_user, validate_sql_server_connection, ServiceError};
 
 #[test]
 fn GivenValidName_WhenGreetUserIsCalled_ThenMessage_ShouldIncludeNameAndBackendOrigin() {
@@ -16,7 +16,7 @@ fn GivenInvalidConnectionString_WhenValidationIsRequested_ThenResult_ShouldMapCo
     ));
 
     let error = result.expect_err("expected invalid configuration error");
-    assert_eq!(format!("{error:?}"), "InvalidConfiguration(\"missing username\")");
+    assert_eq!(error, ServiceError::InvalidConfiguration("missing username"));
 }
 
 #[test]
@@ -26,9 +26,11 @@ fn GivenUnavailableServer_WhenValidationIsRequested_ThenResult_ShouldMapSourceUn
     ));
 
     let error = result.expect_err("expected connection failure error");
-    let debug_error = format!("{error:?}");
     assert!(
-        debug_error == "SourceUnavailable" || debug_error == "QueryExecutionFailed",
-        "unexpected error variant: {debug_error}"
+        matches!(
+            error,
+            ServiceError::SourceUnavailable | ServiceError::QueryExecutionFailed
+        ),
+        "unexpected error variant: {error:?}"
     );
 }

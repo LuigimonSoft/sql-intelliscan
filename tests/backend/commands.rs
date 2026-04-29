@@ -2,7 +2,7 @@
 
 use sql_intelliscan_lib::{
     build_app_state, greet_with_state, register_handlers,
-    validate_sql_server_connection_with_state,
+    validate_sql_server_connection_with_state, ServiceError,
 };
 
 #[test]
@@ -32,5 +32,5 @@ fn GivenInvalidConnectionString_WhenValidateCommandHandlerIsCalled_ThenResult_Sh
     ));
 
     let error = result.expect_err("expected invalid configuration error");
-    assert_eq!(format!("{error:?}"), "InvalidConfiguration(\"missing username\")");
+    assert_eq!(error, ServiceError::InvalidConfiguration("missing username"));
 }
