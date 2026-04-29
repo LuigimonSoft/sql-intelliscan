@@ -10,8 +10,8 @@ use crate::dependency_wiring::{
     BackendMetadataRepositoryAdapter, SqlServerConnectionRepositoryFactory,
 };
 
-pub type AppGreetingService = GreetingService<BackendMetadataRepositoryAdapter>;
-pub type AppConnectionService = ConnectionService<SqlServerConnectionRepositoryFactory>;
+pub(crate) type AppGreetingService = GreetingService<BackendMetadataRepositoryAdapter>;
+pub(crate) type AppConnectionService = ConnectionService<SqlServerConnectionRepositoryFactory>;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -20,7 +20,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(
+    pub(crate) fn new(
         greeting_service: Arc<AppGreetingService>,
         connection_service: Arc<AppConnectionService>,
     ) -> Self {
@@ -41,14 +41,6 @@ impl AppState {
         self.connection_service
             .test_configured_connection(connection_string)
             .await
-    }
-
-    pub fn greeting_service(&self) -> Arc<AppGreetingService> {
-        Arc::clone(&self.greeting_service)
-    }
-
-    pub fn connection_service(&self) -> Arc<AppConnectionService> {
-        Arc::clone(&self.connection_service)
     }
 }
 
