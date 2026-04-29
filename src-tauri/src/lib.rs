@@ -4,18 +4,23 @@ mod dependency_wiring;
 mod state;
 
 pub use commands::{
-    greet_command, register_handlers, validate_sql_server_connection_command,
+    greet_command, greet_with_state, register_handlers, validate_sql_server_connection_command,
+    validate_sql_server_connection_with_state,
 };
-pub use configuration::build_app;
-pub use dependency_wiring::{greet_user, validate_sql_server_connection};
 use configuration::run_builder;
+pub use configuration::{build_app, try_build_app};
+pub use dependency_wiring::{
+    build_app_state, greet_user, shared_app_state, validate_sql_server_connection,
+};
+pub use sql_intelliscan_services::errors::ServiceError;
+pub use state::AppState;
 use state::{backend_runner, run_hooks, BackendRunner, BuilderFactory, Runner};
 
 const DEFAULT_BUILDER_FACTORY: BuilderFactory = build_app;
 const DEFAULT_RUNNER: Runner = run_builder;
 const DEFAULT_BACKEND_RUNNER: BackendRunner = run;
 
-pub fn greet(name: &str) -> String {
+pub fn greet(name: &str) -> Result<String, ServiceError> {
     greet_user(name)
 }
 

@@ -6,6 +6,7 @@ use std::rc::Rc;
 use sql_intelliscan_services::{
     contracts::{
         AuditRepository, BackendMetadataRepository, ConfigurationRepository, ConnectionRepository,
+        ConnectionRepositoryFactory,
     },
     errors::{DataAccessError, DataAccessResult, ServiceError},
     models::ConnectionTestResult,
@@ -67,6 +68,32 @@ struct FalseConnectionRepository;
 impl ConnectionRepository for FalseConnectionRepository {
     async fn validate_connection(&self) -> DataAccessResult<bool> {
         Ok(false)
+    }
+}
+
+struct TestConnectionRepositoryFactory;
+
+impl ConnectionRepositoryFactory for TestConnectionRepositoryFactory {
+    type Repository = TestConnectionRepository;
+
+    fn build(&self, connection_string: &str) -> DataAccessResult<Self::Repository> {
+        if connection_string.trim().is_empty() {
+            return Err(DataAccessError::InvalidConfiguration(
+                "connection string is required",
+            ));
+        }
+
+        Ok(TestConnectionRepository)
+    }
+}
+
+struct FalseConnectionRepositoryFactory;
+
+impl ConnectionRepositoryFactory for FalseConnectionRepositoryFactory {
+    type Repository = FalseConnectionRepository;
+
+    fn build(&self, _connection_string: &str) -> DataAccessResult<Self::Repository> {
+        Ok(FalseConnectionRepository)
     }
 }
 
@@ -173,6 +200,43 @@ fn GivenRepositoryConfigurationFailure_WhenValidationIsRequested_ThenService_Sho
         result,
         Err(ServiceError::InvalidConfiguration("missing host"))
     );
+}
+
+#[test]
+fn GivenConnectionRepositoryFactory_WhenConfiguredValidationIsRequested_ThenService_ShouldBuildRepository(
+) {
+    let service = ConnectionService::new(TestConnectionRepositoryFactory);
+
+    let result =
+        futures::executor::block_on(service.test_configured_connection("Server=localhost"));
+
+    assert_eq!(result, Ok(ConnectionTestResult::valid()));
+}
+
+#[test]
+fn GivenInvalidConnectionConfiguration_WhenConfiguredValidationIsRequested_ThenService_ShouldReturnValidationError(
+) {
+    let service = ConnectionService::new(TestConnectionRepositoryFactory);
+
+    let result = futures::executor::block_on(service.test_configured_connection(" "));
+
+    assert_eq!(
+        result,
+        Err(ServiceError::InvalidConfiguration(
+            "connection string is required"
+        ))
+    );
+}
+
+#[test]
+fn GivenConnectionRepositoryFactory_WhenConfiguredBooleanValidationIsRequested_ThenService_ShouldReturnBoolean(
+) {
+    let service = ConnectionService::new(FalseConnectionRepositoryFactory);
+
+    let result =
+        futures::executor::block_on(service.validate_configured_connection("Server=localhost"));
+
+    assert_eq!(result, Ok(false));
 }
 
 #[test]

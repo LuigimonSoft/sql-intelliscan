@@ -1,3 +1,5 @@
+use std::sync::{Arc, OnceLock};
+
 use sql_intelliscan_repository::{
     BackendMetadataRepository as RepositoryBackendMetadataRepository,
     ConnectionRepository as RepositoryConnectionRepository, RepositoryError,
@@ -6,35 +8,18 @@ use sql_intelliscan_repository::{
 use sql_intelliscan_services::{
     contracts::{
         BackendMetadataRepository as ServiceBackendMetadataRepository,
-        ConnectionRepository as ServiceConnectionRepository,
+        ConnectionRepository as ServiceConnectionRepository, ConnectionRepositoryFactory,
     },
     errors::{DataAccessError, DataAccessResult, ServiceError},
-    models::ConnectionTestResult,
     ConnectionService, GreetingService,
 };
 
-pub fn greet_user(name: &str) -> String {
-    let service = GreetingService::new(BackendMetadataRepositoryAdapter(
-        StaticBackendMetadataRepository,
-    ));
+use crate::state::{AppState, AppStateResult};
 
-    service.greet(name)
-}
+static SHARED_APP_STATE: OnceLock<AppStateResult> = OnceLock::new();
 
-pub async fn validate_sql_server_connection(
-    connection_string: &str,
-) -> Result<ConnectionTestResult, ServiceError> {
-    let config = SqlServerConnectionConfig::from_connection_string(connection_string)
-        .map_err(map_repository_error_to_data_access)
-        .map_err(ServiceError::from)?;
-    let repository =
-        SqlServerConnectionRepositoryAdapter(SqlServerConnectionRepository::new(config));
-    let service = ConnectionService::new(repository);
-
-    service.test_connection().await
-}
-
-struct BackendMetadataRepositoryAdapter(StaticBackendMetadataRepository);
+#[derive(Debug, Clone, Copy)]
+pub struct BackendMetadataRepositoryAdapter(pub StaticBackendMetadataRepository);
 
 impl ServiceBackendMetadataRepository for BackendMetadataRepositoryAdapter {
     fn origin(&self) -> &'static str {
@@ -42,7 +27,23 @@ impl ServiceBackendMetadataRepository for BackendMetadataRepositoryAdapter {
     }
 }
 
-struct SqlServerConnectionRepositoryAdapter(SqlServerConnectionRepository);
+#[derive(Debug, Clone, Copy)]
+pub struct SqlServerConnectionRepositoryFactory;
+
+impl ConnectionRepositoryFactory for SqlServerConnectionRepositoryFactory {
+    type Repository = SqlServerConnectionRepositoryAdapter;
+
+    fn build(&self, connection_string: &str) -> DataAccessResult<Self::Repository> {
+        let config = SqlServerConnectionConfig::from_connection_string(connection_string)
+            .map_err(map_repository_error_to_data_access)?;
+
+        Ok(SqlServerConnectionRepositoryAdapter(
+            SqlServerConnectionRepository::new(config),
+        ))
+    }
+}
+
+pub struct SqlServerConnectionRepositoryAdapter(SqlServerConnectionRepository);
 
 impl ServiceConnectionRepository for SqlServerConnectionRepositoryAdapter {
     async fn validate_connection(&self) -> DataAccessResult<bool> {
@@ -51,6 +52,35 @@ impl ServiceConnectionRepository for SqlServerConnectionRepositoryAdapter {
             .await
             .map_err(map_repository_error_to_data_access)
     }
+}
+
+pub fn build_app_state() -> AppStateResult {
+    let backend_metadata_repository =
+        BackendMetadataRepositoryAdapter(StaticBackendMetadataRepository);
+    let sql_server_connection_repository_factory = SqlServerConnectionRepositoryFactory;
+
+    let greeting_service = Arc::new(GreetingService::new(backend_metadata_repository));
+    let connection_service = Arc::new(ConnectionService::new(
+        sql_server_connection_repository_factory,
+    ));
+
+    Ok(AppState::new(greeting_service, connection_service))
+}
+
+pub fn shared_app_state() -> AppStateResult {
+    SHARED_APP_STATE.get_or_init(build_app_state).clone()
+}
+
+pub fn greet_user(name: &str) -> Result<String, ServiceError> {
+    Ok(shared_app_state()?.greet(name))
+}
+
+pub async fn validate_sql_server_connection(
+    connection_string: &str,
+) -> Result<sql_intelliscan_services::models::ConnectionTestResult, ServiceError> {
+    shared_app_state()?
+        .validate_sql_server_connection(connection_string)
+        .await
 }
 
 fn map_repository_error_to_data_access(error: RepositoryError) -> DataAccessError {

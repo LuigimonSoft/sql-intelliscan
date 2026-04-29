@@ -6,21 +6,21 @@ use sql_intelliscan_lib::{build_app, greet, reset_run_hooks, run, run_with, set_
 
 #[test]
 fn GivenValidName_WhenGreetIsCalled_ThenMessage_ShouldIncludeNameAndBackendOrigin() {
-    let result = greet("Carlos");
+    let result = greet("Carlos").expect("greeting should resolve");
 
     assert_eq!(result, "Hello, Carlos! You've been greeted from Rust!");
 }
 
 #[test]
 fn GivenEmptyName_WhenGreetIsCalled_ThenMessage_ShouldPreserveTemplateWithoutPanicking() {
-    let result = greet("");
+    let result = greet("").expect("greeting should resolve");
 
     assert_eq!(result, "Hello, ! You've been greeted from Rust!");
 }
 
 #[test]
 fn GivenNameWithUnicodeAndWhitespace_WhenGreetIsCalled_ThenMessage_ShouldPreserveOriginalInput() {
-    let result = greet("  José 🚀  ");
+    let result = greet("  José 🚀  ").expect("greeting should resolve");
 
     assert_eq!(result, "Hello,   José 🚀  ! You've been greeted from Rust!");
 }
