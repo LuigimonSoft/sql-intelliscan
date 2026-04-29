@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use sql_intelliscan_repository::{
     BackendMetadataRepository as RepositoryBackendMetadataRepository,
     ConnectionRepository as RepositoryConnectionRepository, RepositoryError,
@@ -13,12 +15,18 @@ use sql_intelliscan_services::{
     ConnectionService, GreetingService,
 };
 
-pub fn greet_user(name: &str) -> String {
-    let service = GreetingService::new(BackendMetadataRepositoryAdapter(
+use crate::state::AppState;
+
+pub fn create_app_state() -> AppState {
+    let greeting_service = GreetingService::new(BackendMetadataRepositoryAdapter(
         StaticBackendMetadataRepository,
     ));
 
-    service.greet(name)
+    AppState::new(Arc::new(greeting_service))
+}
+
+pub(crate) fn greet_user(name: &str, state: &AppState) -> String {
+    state.greet(name)
 }
 
 pub async fn validate_sql_server_connection(
@@ -34,7 +42,8 @@ pub async fn validate_sql_server_connection(
     service.test_connection().await
 }
 
-struct BackendMetadataRepositoryAdapter(StaticBackendMetadataRepository);
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct BackendMetadataRepositoryAdapter(StaticBackendMetadataRepository);
 
 impl ServiceBackendMetadataRepository for BackendMetadataRepositoryAdapter {
     fn origin(&self) -> &'static str {

@@ -1,12 +1,15 @@
 #![allow(non_snake_case)]
 
 use sql_intelliscan_lib::{
-    greet_command, register_handlers, validate_sql_server_connection_command,
+    create_app_state, greet_command_handler, register_handlers,
+    validate_sql_server_connection_command,
 };
 
 #[test]
-fn GivenValidName_WhenGreetCommandIsCalled_ThenMessage_ShouldIncludeNameAndBackendOrigin() {
-    let result = greet_command("Ana");
+fn GivenManagedAppState_WhenGreetHandlerRuns_ThenMessage_ShouldUseBackendOrigin() {
+    let state = create_app_state();
+
+    let result = greet_command_handler("Ana", &state);
 
     assert_eq!(result, "Hello, Ana! You've been greeted from Rust!");
 }
