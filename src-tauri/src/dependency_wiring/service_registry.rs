@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use sql_intelliscan_repository::{
     BackendMetadataRepository as RepositoryBackendMetadataRepository,
@@ -15,6 +15,8 @@ use sql_intelliscan_services::{
 };
 
 use crate::state::{AppState, AppStateResult};
+
+static SHARED_APP_STATE: OnceLock<AppStateResult> = OnceLock::new();
 
 #[derive(Debug, Clone, Copy)]
 pub struct BackendMetadataRepositoryAdapter(pub StaticBackendMetadataRepository);
@@ -65,17 +67,18 @@ pub fn build_app_state() -> AppStateResult {
     Ok(AppState::new(greeting_service, connection_service))
 }
 
-pub fn greet_user(name: &str) -> String {
-    build_app_state()
-        .expect("application dependencies should be valid")
-        .greet(name)
+pub fn shared_app_state() -> AppStateResult {
+    SHARED_APP_STATE.get_or_init(build_app_state).clone()
+}
+
+pub fn greet_user(name: &str) -> Result<String, ServiceError> {
+    Ok(shared_app_state()?.greet(name))
 }
 
 pub async fn validate_sql_server_connection(
     connection_string: &str,
 ) -> Result<sql_intelliscan_services::models::ConnectionTestResult, ServiceError> {
-    build_app_state()
-        .expect("application dependencies should be valid")
+    shared_app_state()?
         .validate_sql_server_connection(connection_string)
         .await
 }

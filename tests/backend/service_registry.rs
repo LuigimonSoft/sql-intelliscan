@@ -4,7 +4,7 @@ use sql_intelliscan_lib::{greet_user, validate_sql_server_connection, ServiceErr
 
 #[test]
 fn GivenValidName_WhenGreetUserIsCalled_ThenMessage_ShouldIncludeNameAndBackendOrigin() {
-    let result = greet_user("Lucía");
+    let result = greet_user("Lucía").expect("greeting should resolve");
 
     assert_eq!(result, "Hello, Lucía! You've been greeted from Rust!");
 }
