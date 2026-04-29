@@ -25,8 +25,8 @@ pub fn create_app_state() -> AppState {
     AppState::new(Arc::new(greeting_service))
 }
 
-pub fn greet_user(name: &str, state: &AppState) -> String {
-    state.greeting_service.greet(name)
+pub(crate) fn greet_user(name: &str, state: &AppState) -> String {
+    state.greet(name)
 }
 
 pub async fn validate_sql_server_connection(
@@ -43,7 +43,7 @@ pub async fn validate_sql_server_connection(
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct BackendMetadataRepositoryAdapter(pub StaticBackendMetadataRepository);
+pub(crate) struct BackendMetadataRepositoryAdapter(StaticBackendMetadataRepository);
 
 impl ServiceBackendMetadataRepository for BackendMetadataRepositoryAdapter {
     fn origin(&self) -> &'static str {

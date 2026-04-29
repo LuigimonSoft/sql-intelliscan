@@ -1,13 +1,14 @@
 use sql_intelliscan_services::{errors::ServiceError, models::ConnectionTestResult};
 
-use crate::{
-    dependency_wiring::{greet_user, validate_sql_server_connection},
-    state::AppState,
-};
+use crate::{dependency_wiring::validate_sql_server_connection, state::AppState};
+
+pub fn greet_command_handler(name: &str, state: &AppState) -> String {
+    state.greet(name)
+}
 
 #[tauri::command]
 pub(crate) fn greet_command(name: &str, state: tauri::State<'_, AppState>) -> String {
-    greet_user(name, state.inner())
+    greet_command_handler(name, state.inner())
 }
 
 #[tauri::command]

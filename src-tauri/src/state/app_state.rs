@@ -4,15 +4,19 @@ use sql_intelliscan_services::GreetingService;
 
 use crate::dependency_wiring::BackendMetadataRepositoryAdapter;
 
-pub type GreetingAppService = GreetingService<BackendMetadataRepositoryAdapter>;
+type GreetingAppService = GreetingService<BackendMetadataRepositoryAdapter>;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub greeting_service: Arc<GreetingAppService>,
+    greeting_service: Arc<GreetingAppService>,
 }
 
 impl AppState {
-    pub fn new(greeting_service: Arc<GreetingAppService>) -> Self {
+    pub(crate) fn new(greeting_service: Arc<GreetingAppService>) -> Self {
         Self { greeting_service }
+    }
+
+    pub fn greet(&self, name: &str) -> String {
+        self.greeting_service.greet(name)
     }
 }
