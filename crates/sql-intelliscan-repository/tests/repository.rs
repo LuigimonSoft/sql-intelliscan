@@ -28,6 +28,6 @@ fn GivenConnectionStringWithoutCredentials_WhenParsed_ThenResult_ShouldReturnInv
 
     assert_eq!(
         result,
-        Err(RepositoryError::InvalidConfiguration("missing username"))
+        Err(RepositoryError::InvalidConfiguration("invalid SQL Server connection configuration"))
     );
 }
