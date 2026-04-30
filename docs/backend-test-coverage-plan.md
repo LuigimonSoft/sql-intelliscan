@@ -7,16 +7,14 @@ This project validates frontend and backend line coverage in CI with `cargo llvm
 The workflow computes frontend line coverage with:
 
 - `cargo llvm-cov clean --workspace`
-- `cargo llvm-cov --workspace --no-report --lib --test frontend`
-- `cargo llvm-cov --workspace --no-run --json > frontend-coverage.json`
+- `cargo llvm-cov --workspace --json --output-path frontend-coverage.json --lib --test frontend`
 
 It filters coverage to `src`, excludes `src/main.rs`, and fails below `80%`.
 
 The workflow computes backend line coverage with:
 
 - `cargo llvm-cov clean --workspace`
-- `cargo llvm-cov --workspace --no-report --test backend_contracts`
-- `cargo llvm-cov --workspace --no-run --json > backend-coverage.json`
+- `cargo llvm-cov --workspace --json --output-path backend-coverage.json --test backend_contracts`
 
 It filters coverage to `src-tauri/src`, excludes `src-tauri/src/main.rs`, and fails below `80%`.
 
@@ -34,15 +32,15 @@ Each layer crate has its own `tests` folder and its own coverage gate:
 
 Reference: `.github/workflows/buildtest.yml` (steps **Frontend coverage**, **Backend coverage**, **Crate layer tests**, and **Crate layer coverage**).
 
-## Current local verification (2026-04-25)
+## Current local verification (2026-04-30)
 
 Measured locally with the same metrics used by CI:
 
-- **Frontend coverage**: `89.13%` (41/46)
-- **Backend coverage**: `84.48%` (49/58)
+- **Frontend coverage**: `91.38%` (53/58)
+- **Backend coverage**: `93.78%` (196/209)
 - **Common crate coverage**: `100.00%` (3/3)
-- **Repository crate coverage**: `100.00%` (3/3)
-- **Services crate coverage**: `100.00%` (8/8)
+- **Repository crate coverage**: `91.08%` (194/213)
+- **Services crate coverage**: `97.67%` (84/86)
 
 So today the frontend, backend, and each layer crate pass the CI requirement (`>= 80%`).
 
@@ -58,8 +56,7 @@ So today the frontend, backend, and each layer crate pass the CI requirement (`>
 
 ```bash
 cargo llvm-cov clean --workspace
-cargo llvm-cov --workspace --no-report --lib --test frontend
-cargo llvm-cov --workspace --no-run --json > frontend-coverage.json
+cargo llvm-cov --workspace --json --output-path frontend-coverage.json --lib --test frontend
 python3 ./scripts/check-coverage.py \
   --report frontend-coverage.json \
   --root src \
@@ -68,8 +65,7 @@ python3 ./scripts/check-coverage.py \
   --min 80
 
 cargo llvm-cov clean --workspace
-cargo llvm-cov --workspace --no-report --test backend_contracts
-cargo llvm-cov --workspace --no-run --json > backend-coverage.json
+cargo llvm-cov --workspace --json --output-path backend-coverage.json --test backend_contracts
 python3 ./scripts/check-coverage.py \
   --report backend-coverage.json \
   --root src-tauri/src \
@@ -82,8 +78,7 @@ cargo test -p sql-intelliscan-repository
 cargo test -p sql-intelliscan-services
 
 cargo llvm-cov clean --workspace
-cargo llvm-cov -p sql-intelliscan-common --no-report
-cargo llvm-cov -p sql-intelliscan-common --no-run --json > common-coverage.json
+cargo llvm-cov -p sql-intelliscan-common --json --output-path common-coverage.json
 python3 ./scripts/check-coverage.py \
   --report common-coverage.json \
   --root crates/sql-intelliscan-common/src \
@@ -91,8 +86,7 @@ python3 ./scripts/check-coverage.py \
   --min 80
 
 cargo llvm-cov clean --workspace
-cargo llvm-cov -p sql-intelliscan-repository --no-report
-cargo llvm-cov -p sql-intelliscan-repository --no-run --json > repository-coverage.json
+cargo llvm-cov -p sql-intelliscan-repository --json --output-path repository-coverage.json
 python3 ./scripts/check-coverage.py \
   --report repository-coverage.json \
   --root crates/sql-intelliscan-repository/src \
@@ -100,8 +94,7 @@ python3 ./scripts/check-coverage.py \
   --min 80
 
 cargo llvm-cov clean --workspace
-cargo llvm-cov -p sql-intelliscan-services --no-report
-cargo llvm-cov -p sql-intelliscan-services --no-run --json > services-coverage.json
+cargo llvm-cov -p sql-intelliscan-services --json --output-path services-coverage.json
 python3 ./scripts/check-coverage.py \
   --report services-coverage.json \
   --root crates/sql-intelliscan-services/src \

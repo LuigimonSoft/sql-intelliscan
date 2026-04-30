@@ -59,8 +59,7 @@ jobs:
       - name: Frontend coverage
         run: |
           cargo llvm-cov clean --workspace
-          cargo llvm-cov --workspace --no-clean --no-report --lib --test frontend
-          cargo llvm-cov report --json --output-path frontend-coverage.json
+          cargo llvm-cov --workspace --json --output-path frontend-coverage.json --lib --test frontend
           python3 ./scripts/check-coverage.py \
             --report frontend-coverage.json \
             --root src \
@@ -71,8 +70,7 @@ jobs:
         run: |
           cargo llvm-cov clean --workspace
 
-          cargo llvm-cov --workspace --no-clean --no-report --test backend_contracts
-          cargo llvm-cov report --json --output-path backend-coverage.json
+          cargo llvm-cov --workspace --json --output-path backend-coverage.json --test backend_contracts
           python3 ./scripts/check-coverage.py \
             --report backend-coverage.json \
             --root src-tauri/src \
@@ -82,8 +80,7 @@ jobs:
       - name: Crate layer coverage
         run: |
           cargo llvm-cov clean --workspace
-          cargo llvm-cov -p sql-intelliscan-common --no-clean --no-report
-          cargo llvm-cov report --json --output-path common-coverage.json
+          cargo llvm-cov -p sql-intelliscan-common --json --output-path common-coverage.json
           python3 ./scripts/check-coverage.py \
             --report common-coverage.json \
             --root crates/sql-intelliscan-common/src \
@@ -91,8 +88,7 @@ jobs:
             --min 80
 
           cargo llvm-cov clean --workspace
-          cargo llvm-cov -p sql-intelliscan-repository --no-clean --no-report
-          cargo llvm-cov report --json --output-path repository-coverage.json
+          cargo llvm-cov -p sql-intelliscan-repository --json --output-path repository-coverage.json
           python3 ./scripts/check-coverage.py \
             --report repository-coverage.json \
             --root crates/sql-intelliscan-repository/src \
@@ -100,8 +96,7 @@ jobs:
             --min 80
 
           cargo llvm-cov clean --workspace
-          cargo llvm-cov -p sql-intelliscan-services --no-clean --no-report
-          cargo llvm-cov report --json --output-path services-coverage.json
+          cargo llvm-cov -p sql-intelliscan-services --json --output-path services-coverage.json
           python3 ./scripts/check-coverage.py \
             --report services-coverage.json \
             --root crates/sql-intelliscan-services/src \
