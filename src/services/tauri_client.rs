@@ -24,7 +24,6 @@ pub struct CommandErrorResponse {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct BackendConnectionTestResult {
     pub is_valid: bool,
-    pub message: String,
 }
 
 #[derive(Serialize)]
@@ -113,10 +112,7 @@ pub async fn invoke_validate_sql_server_connection(
 
     Ok(CommandSuccessResponse {
         message: "Connection validated successfully".to_string(),
-        data: BackendConnectionTestResult {
-            is_valid: true,
-            message: "Connection validated successfully".to_string(),
-        },
+        data: BackendConnectionTestResult { is_valid: true },
     })
 }
 

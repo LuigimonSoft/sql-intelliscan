@@ -4,14 +4,14 @@ use sql_intelliscan_ui::services::connection_service::{
     map_connection_test_result, normalize_backend_error, test_connection,
 };
 use sql_intelliscan_ui::services::tauri_client::{
-    BackendConnectionTestResult, CommandErrorResponse,
+    BackendConnectionTestResult, CommandErrorResponse, CommandSuccessResponse,
 };
 
 #[test]
 fn GivenBackendConnectionResult_WhenMapped_ThenFrontendModel_ShouldExposeFriendlyStatus() {
-    let status = map_connection_test_result(BackendConnectionTestResult {
-        is_valid: true,
+    let status = map_connection_test_result(CommandSuccessResponse {
         message: "Connection validated successfully".to_string(),
+        data: BackendConnectionTestResult { is_valid: true },
     });
 
     assert!(status.is_valid);

@@ -22,5 +22,4 @@ fn GivenConnectionString_WhenValidateCommandIsInvoked_ThenMockedResponse_ShouldM
 
     assert_eq!(response.message, "Connection validated successfully");
     assert!(response.data.is_valid);
-    assert_eq!(response.data.message, "Connection validated successfully");
 }

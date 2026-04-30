@@ -1,5 +1,6 @@
 use crate::services::tauri_client::{
     invoke_validate_sql_server_connection, BackendConnectionTestResult, CommandErrorResponse,
+    CommandSuccessResponse,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,13 +22,15 @@ pub async fn test_connection(
         .await
         .map_err(normalize_backend_error)?;
 
-    Ok(map_connection_test_result(response.data))
+    Ok(map_connection_test_result(response))
 }
 
-pub fn map_connection_test_result(result: BackendConnectionTestResult) -> ConnectionTestStatus {
+pub fn map_connection_test_result(
+    response: CommandSuccessResponse<BackendConnectionTestResult>,
+) -> ConnectionTestStatus {
     ConnectionTestStatus {
-        is_valid: result.is_valid,
-        message: result.message,
+        is_valid: response.data.is_valid,
+        message: response.message,
     }
 }
 
