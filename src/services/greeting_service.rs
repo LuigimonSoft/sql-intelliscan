@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::services::tauri_client::invoke_backend_greet;
+use crate::services::tauri_client::{
+    invoke_backend_greet, CommandErrorResponse, CommandSuccessResponse,
+};
 
 #[derive(Deserialize, Serialize)]
 pub struct GreetResponse {
@@ -28,7 +30,18 @@ pub fn greet_message_sync(name: &str) -> Option<String> {
 pub async fn greet_message(name: &str) -> Option<String> {
     let normalized_name = normalized_name(name)?;
 
-    Some(invoke_backend_greet(normalized_name).await.message)
+    Some(map_greet_response(
+        invoke_backend_greet(normalized_name).await,
+    ))
+}
+
+pub fn map_greet_response(
+    response: Result<CommandSuccessResponse<String>, CommandErrorResponse>,
+) -> String {
+    match response {
+        Ok(response) => response.data,
+        Err(error) => error.message,
+    }
 }
 
 fn normalized_name(name: &str) -> Option<&str> {
