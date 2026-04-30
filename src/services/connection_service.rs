@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-
 use crate::services::tauri_client::{
     invoke_validate_sql_server_connection, BackendConnectionTestResult, CommandErrorResponse,
 };
@@ -13,11 +11,6 @@ pub struct ConnectionTestStatus {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FrontendServiceError {
     pub message: String,
-}
-
-#[derive(Deserialize, Serialize)]
-pub struct ValidateConnectionArgs<'a> {
-    pub connection_string: &'a str,
 }
 
 pub async fn test_connection(
