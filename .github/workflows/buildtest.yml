@@ -1,13 +1,17 @@
 name: Build and Test
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      CARGO_TARGET_DIR: ${{ runner.temp }}/sql-intelliscan-target
-      CARGO_LLVM_COV_TARGET_DIR: ${{ runner.temp }}/sql-intelliscan-llvm-cov-target
+      CARGO_TARGET_DIR: /tmp/sql-intelliscan-target
+      CARGO_LLVM_COV_TARGET_DIR: /tmp/sql-intelliscan-llvm-cov-target
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
@@ -48,7 +52,7 @@ jobs:
           cargo test -p sql-intelliscan-services
       - name: Frontend wasm tests
         env:
-          CARGO_TARGET_DIR: ${{ runner.temp }}/sql-intelliscan-wasm-target
+          CARGO_TARGET_DIR: /tmp/sql-intelliscan-wasm-target
         run: bash ./scripts/wasm-test-local.sh
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov
@@ -56,7 +60,7 @@ jobs:
         run: |
           cargo llvm-cov clean --workspace
           cargo llvm-cov --workspace --no-clean --no-report --lib --test frontend
-          cargo llvm-cov --workspace --no-clean --no-run --json > frontend-coverage.json
+          cargo llvm-cov report --json --output-path frontend-coverage.json
           python3 ./scripts/check-coverage.py \
             --report frontend-coverage.json \
             --root src \
@@ -67,7 +71,7 @@ jobs:
         run: |
           cargo llvm-cov clean --workspace
           cargo llvm-cov --workspace --no-clean --no-report --test backend_contracts
-          cargo llvm-cov --workspace --no-clean --no-run --json > backend-coverage.json
+          cargo llvm-cov report --json --output-path backend-coverage.json
           python3 ./scripts/check-coverage.py \
             --report backend-coverage.json \
             --root src-tauri/src \
@@ -78,7 +82,7 @@ jobs:
         run: |
           cargo llvm-cov clean --workspace
           cargo llvm-cov -p sql-intelliscan-common --no-clean --no-report
-          cargo llvm-cov -p sql-intelliscan-common --no-clean --no-run --json > common-coverage.json
+          cargo llvm-cov report --json --output-path common-coverage.json
           python3 ./scripts/check-coverage.py \
             --report common-coverage.json \
             --root crates/sql-intelliscan-common/src \
@@ -87,7 +91,7 @@ jobs:
 
           cargo llvm-cov clean --workspace
           cargo llvm-cov -p sql-intelliscan-repository --no-clean --no-report
-          cargo llvm-cov -p sql-intelliscan-repository --no-clean --no-run --json > repository-coverage.json
+          cargo llvm-cov report --json --output-path repository-coverage.json
           python3 ./scripts/check-coverage.py \
             --report repository-coverage.json \
             --root crates/sql-intelliscan-repository/src \
@@ -96,7 +100,7 @@ jobs:
 
           cargo llvm-cov clean --workspace
           cargo llvm-cov -p sql-intelliscan-services --no-clean --no-report
-          cargo llvm-cov -p sql-intelliscan-services --no-clean --no-run --json > services-coverage.json
+          cargo llvm-cov report --json --output-path services-coverage.json
           python3 ./scripts/check-coverage.py \
             --report services-coverage.json \
             --root crates/sql-intelliscan-services/src \
