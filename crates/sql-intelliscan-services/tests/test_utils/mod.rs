@@ -1,0 +1,9 @@
+mod mock_audit_repository;
+mod mock_backend_metadata_repository;
+mod mock_configuration_repository;
+mod mock_connection_repository;
+
+pub use mock_audit_repository::MockAuditRepository;
+pub use mock_backend_metadata_repository::MockBackendMetadataRepository;
+pub use mock_configuration_repository::MockConfigurationRepository;
+pub use mock_connection_repository::{MockConnectionRepository, MockConnectionRepositoryFactory};
