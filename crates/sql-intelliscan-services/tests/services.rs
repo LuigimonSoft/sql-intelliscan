@@ -128,7 +128,7 @@ fn GivenInvalidConnectionConfiguration_WhenConfiguredValidationIsRequested_ThenS
     let factory = MockConnectionRepositoryFactory::fails_with(
         DataAccessError::InvalidConfiguration("connection string is required"),
     );
-    let service = ConnectionService::new(factory);
+    let service = ConnectionService::new(factory.clone());
 
     let result = futures::executor::block_on(service.test_configured_connection(" "));
 
@@ -138,6 +138,7 @@ fn GivenInvalidConnectionConfiguration_WhenConfiguredValidationIsRequested_ThenS
             "connection string is required"
         ))
     );
+    assert_eq!(factory.requested_connection_strings(), [" ".to_owned()]);
 }
 
 #[test]
