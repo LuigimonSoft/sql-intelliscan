@@ -7,7 +7,7 @@ fn GivenServiceErrors_WhenMappedToCommandErrorResponse_ThenMessages_ShouldBeUser
     let cases = [
         (
             ServiceError::InvalidAuditRequest("missing target"),
-            "The submitted audit request is invalid.",
+            "The submitted audit request is invalid: missing target.",
         ),
         (
             ServiceError::InvalidConfiguration("missing password"),
@@ -23,7 +23,7 @@ fn GivenServiceErrors_WhenMappedToCommandErrorResponse_ThenMessages_ShouldBeUser
         ),
         (
             ServiceError::ResultMappingFailed("unexpected scalar"),
-            "The operation could not map the returned data.",
+            "The operation could not map the returned data: unexpected scalar.",
         ),
         (
             ServiceError::SourceUnavailable,

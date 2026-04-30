@@ -19,8 +19,8 @@ pub struct CommandErrorResponse {
 impl CommandErrorResponse {
     pub fn from_service_error(error: ServiceError) -> Self {
         let message = match error {
-            ServiceError::InvalidAuditRequest(_) => {
-                "The submitted audit request is invalid.".to_string()
+            ServiceError::InvalidAuditRequest(reason) => {
+                format!("The submitted audit request is invalid: {reason}.")
             }
             ServiceError::InvalidConfiguration(reason) => {
                 format!("The provided configuration is invalid: {reason}.")
@@ -29,8 +29,8 @@ impl CommandErrorResponse {
             ServiceError::QueryExecutionFailed => {
                 "The operation failed while querying the data source.".to_string()
             }
-            ServiceError::ResultMappingFailed(_) => {
-                "The operation could not map the returned data.".to_string()
+            ServiceError::ResultMappingFailed(reason) => {
+                format!("The operation could not map the returned data: {reason}.")
             }
             ServiceError::SourceUnavailable => {
                 "The data source is currently unavailable.".to_string()
