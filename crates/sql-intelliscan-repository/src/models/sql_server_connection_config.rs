@@ -66,6 +66,20 @@ pub enum ConnectionConfigValidationError {
     InvalidApplicationName,
 }
 
+impl ConnectionConfigValidationError {
+    fn as_repository_message(&self) -> &'static str {
+        match self {
+            Self::HostRequired => "missing host",
+            Self::DatabaseRequired => "missing database",
+            Self::UsernameRequired => "missing username",
+            Self::PasswordRequired => "missing password",
+            Self::InvalidPort => "invalid port",
+            Self::InvalidTimeout => "invalid timeout",
+            Self::InvalidApplicationName => "invalid application name",
+        }
+    }
+}
+
 impl SqlServerConnectionConfig {
     pub fn validate(&self) -> Result<(), Vec<ConnectionConfigValidationError>> {
         let mut errors = Vec::new();
@@ -163,8 +177,12 @@ impl SqlServerConnectionConfig {
             }
         }
 
-        config.validate().map_err(|_| {
-            RepositoryError::InvalidConfiguration("invalid SQL Server connection configuration")
+        config.validate().map_err(|errors| {
+            let first = errors
+                .first()
+                .map(ConnectionConfigValidationError::as_repository_message)
+                .unwrap_or("invalid SQL Server connection configuration");
+            RepositoryError::InvalidConfiguration(first)
         })?;
 
         Ok(config)
