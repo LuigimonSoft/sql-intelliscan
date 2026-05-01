@@ -26,8 +26,13 @@ impl MockConnectionRepository {
 }
 
 impl ConnectionRepository for MockConnectionRepository {
-    async fn validate_connection(&self) -> DataAccessResult<bool> {
-        self.result.clone()
+    #[allow(clippy::manual_async_fn)]
+    fn validate_connection(
+        &self,
+    ) -> impl std::future::Future<Output = DataAccessResult<bool>> + Send {
+        let result = self.result.clone();
+
+        async move { result }
     }
 }
 

@@ -6,4 +6,6 @@ mod connection_repository_contract;
 pub use audit_repository_contract::AuditRepository;
 pub use backend_metadata_repository_contract::BackendMetadataRepository;
 pub use configuration_repository_contract::ConfigurationRepository;
-pub use connection_repository_contract::{ConnectionRepository, ConnectionRepositoryFactory};
+pub use connection_repository_contract::{
+    ConnectionRepository, ConnectionRepositoryContract, ConnectionRepositoryFactory,
+};
