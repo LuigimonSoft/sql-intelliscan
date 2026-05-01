@@ -1,23 +1,134 @@
+use std::fmt;
+
 use crate::errors::{RepositoryError, RepositoryResult};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+const DEFAULT_PORT: u16 = 1433;
+const DEFAULT_TIMEOUT_SECONDS: u64 = 30;
+const MAX_TIMEOUT_SECONDS: u64 = 300;
+const DEFAULT_APPLICATION_NAME: &str = "SQL Intelliscan";
+
+#[derive(Clone, PartialEq, Eq)]
 pub struct SqlServerConnectionConfig {
     pub host: String,
     pub port: u16,
+    pub database: String,
     pub username: String,
     pub password: String,
-    pub database: String,
-    pub trust_cert: bool,
+    pub encrypt: bool,
+    pub trust_server_certificate: bool,
+    pub connection_timeout_seconds: u64,
+    pub application_name: Option<String>,
+}
+
+impl fmt::Debug for SqlServerConnectionConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SqlServerConnectionConfig")
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("database", &self.database)
+            .field("username", &self.username)
+            .field("password", &"***")
+            .field("encrypt", &self.encrypt)
+            .field("trust_server_certificate", &self.trust_server_certificate)
+            .field(
+                "connection_timeout_seconds",
+                &self.connection_timeout_seconds,
+            )
+            .field("application_name", &self.application_name)
+            .finish()
+    }
+}
+
+impl Default for SqlServerConnectionConfig {
+    fn default() -> Self {
+        Self {
+            host: "localhost".to_owned(),
+            port: DEFAULT_PORT,
+            database: "master".to_owned(),
+            username: String::new(),
+            password: String::new(),
+            encrypt: true,
+            trust_server_certificate: false,
+            connection_timeout_seconds: DEFAULT_TIMEOUT_SECONDS,
+            application_name: Some(DEFAULT_APPLICATION_NAME.to_owned()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConnectionConfigValidationError {
+    HostRequired,
+    DatabaseRequired,
+    UsernameRequired,
+    PasswordRequired,
+    InvalidPort,
+    InvalidTimeout,
+    InvalidApplicationName,
+}
+
+impl ConnectionConfigValidationError {
+    fn as_repository_message(&self) -> &'static str {
+        match self {
+            Self::HostRequired => "missing host",
+            Self::DatabaseRequired => "missing database",
+            Self::UsernameRequired => "missing username",
+            Self::PasswordRequired => "missing password",
+            Self::InvalidPort => "invalid port",
+            Self::InvalidTimeout => "invalid timeout",
+            Self::InvalidApplicationName => "invalid application name",
+        }
+    }
 }
 
 impl SqlServerConnectionConfig {
+    pub fn validate(&self) -> Result<(), Vec<ConnectionConfigValidationError>> {
+        let mut errors = Vec::new();
+
+        if self.host.trim().is_empty() {
+            errors.push(ConnectionConfigValidationError::HostRequired);
+        }
+
+        if self.database.trim().is_empty() {
+            errors.push(ConnectionConfigValidationError::DatabaseRequired);
+        }
+
+        if self.username.trim().is_empty() {
+            errors.push(ConnectionConfigValidationError::UsernameRequired);
+        }
+
+        if self.password.trim().is_empty() {
+            errors.push(ConnectionConfigValidationError::PasswordRequired);
+        }
+
+        if self.port == 0 {
+            errors.push(ConnectionConfigValidationError::InvalidPort);
+        }
+
+        if self.connection_timeout_seconds == 0
+            || self.connection_timeout_seconds > MAX_TIMEOUT_SECONDS
+        {
+            errors.push(ConnectionConfigValidationError::InvalidTimeout);
+        }
+
+        if let Some(application_name) = &self.application_name {
+            if application_name.trim().is_empty() {
+                errors.push(ConnectionConfigValidationError::InvalidApplicationName);
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
+
     pub fn from_connection_string(connection_string: &str) -> RepositoryResult<Self> {
-        let mut host = None;
-        let mut port = 1433u16;
-        let mut username = None;
-        let mut password = None;
-        let mut database = None;
-        let mut trust_cert = false;
+        let mut config = Self {
+            host: String::new(),
+            database: String::new(),
+            ..Self::default()
+        };
 
         for token in connection_string
             .split(';')
@@ -35,39 +146,54 @@ impl SqlServerConnectionConfig {
             match key.as_str() {
                 "server" | "data source" => {
                     let mut host_parts = value.split(',');
-                    host = host_parts
-                        .next()
-                        .map(str::trim)
-                        .filter(|item| !item.is_empty())
-                        .map(str::to_owned);
-                    if let Some(parsed_port) = host_parts
-                        .next()
-                        .and_then(|item| item.trim().parse::<u16>().ok())
-                    {
-                        port = parsed_port;
+                    config.host = host_parts.next().unwrap_or_default().trim().to_owned();
+                    if let Some(port) = host_parts.next() {
+                        if host_parts.next().is_some() {
+                            return Err(RepositoryError::InvalidConfiguration("invalid port"));
+                        }
+
+                        config.port = port
+                            .trim()
+                            .parse::<u16>()
+                            .map_err(|_| RepositoryError::InvalidConfiguration("invalid port"))?;
                     }
                 }
-                "user id" | "uid" | "user" => {
-                    username = (!value.is_empty()).then(|| value.to_owned())
-                }
-                "password" | "pwd" => password = (!value.is_empty()).then(|| value.to_owned()),
-                "database" | "initial catalog" => {
-                    database = (!value.is_empty()).then(|| value.to_owned())
-                }
+                "user id" | "uid" | "user" => config.username = value.to_owned(),
+                "password" | "pwd" => config.password = value.to_owned(),
+                "database" | "initial catalog" => config.database = value.to_owned(),
                 "trustservercertificate" => {
-                    trust_cert = matches!(value.to_ascii_lowercase().as_str(), "true" | "1" | "yes")
+                    config.trust_server_certificate =
+                        matches!(value.to_ascii_lowercase().as_str(), "true" | "1" | "yes")
+                }
+                "encrypt" => match value.to_ascii_lowercase().as_str() {
+                    "true" | "1" | "yes" => config.encrypt = true,
+                    "false" | "0" | "no" => config.encrypt = false,
+                    _ => return Err(RepositoryError::InvalidConfiguration("invalid encrypt")),
+                },
+                "connection timeout" | "connect timeout" => {
+                    config.connection_timeout_seconds = value
+                        .parse::<u64>()
+                        .map_err(|_| RepositoryError::InvalidConfiguration("invalid timeout"))?;
+                }
+                "application name" => {
+                    config.application_name = if value.is_empty() {
+                        None
+                    } else {
+                        Some(value.to_owned())
+                    }
                 }
                 _ => {}
             }
         }
 
-        Ok(Self {
-            host: host.ok_or(RepositoryError::InvalidConfiguration("missing host"))?,
-            port,
-            username: username.ok_or(RepositoryError::InvalidConfiguration("missing username"))?,
-            password: password.ok_or(RepositoryError::InvalidConfiguration("missing password"))?,
-            database: database.ok_or(RepositoryError::InvalidConfiguration("missing database"))?,
-            trust_cert,
-        })
+        config.validate().map_err(|errors| {
+            let first = errors
+                .first()
+                .map(ConnectionConfigValidationError::as_repository_message)
+                .unwrap_or("invalid SQL Server connection configuration");
+            RepositoryError::InvalidConfiguration(first)
+        })?;
+
+        Ok(config)
     }
 }
