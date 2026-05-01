@@ -68,7 +68,7 @@ impl SqlServerConnectionRepository {
             &self.config.username,
             &self.config.password,
             &self.config.database,
-            self.config.trust_cert,
+            self.config.trust_server_certificate,
         )
     }
 
@@ -168,7 +168,7 @@ mod tests {
         assert_eq!(config.username, "sa");
         assert_eq!(config.password, "secret");
         assert_eq!(config.database, "master");
-        assert!(config.trust_cert);
+        assert!(config.trust_server_certificate);
     }
 
     #[test]
