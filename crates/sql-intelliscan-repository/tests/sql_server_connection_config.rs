@@ -95,6 +95,35 @@ fn GivenSensitivePassword_WhenDebugFormatted_ThenOutput_ShouldMaskSecret() {
 }
 
 #[test]
+fn GivenValidConnectionString_WhenParsed_ThenConfig_ShouldPopulateCoreFields() {
+    let config = SqlServerConnectionConfig::from_connection_string(
+        "Server=sql.example.test,1444;User Id=sa;Password=secret;Database=warehouse;TrustServerCertificate=yes;",
+    )
+    .expect("connection string should parse");
+
+    assert_eq!(config.host, "sql.example.test");
+    assert_eq!(config.port, 1444);
+    assert_eq!(config.username, "sa");
+    assert_eq!(config.password, "secret");
+    assert_eq!(config.database, "warehouse");
+    assert!(config.trust_server_certificate);
+}
+
+#[test]
+fn GivenConnectionStringWithMalformedSegment_WhenParsed_ThenResult_ShouldReturnInvalidSegment() {
+    let result = SqlServerConnectionConfig::from_connection_string(
+        "Server=localhost;MalformedSegment;User Id=sa;Password=secret;Database=master;",
+    );
+
+    assert_eq!(
+        result,
+        Err(RepositoryError::InvalidConfiguration(
+            "invalid connection string segment"
+        ))
+    );
+}
+
+#[test]
 fn GivenConnectionStringWithoutServer_WhenParsed_ThenResult_ShouldReturnMissingHost() {
     let result = SqlServerConnectionConfig::from_connection_string(
         "User Id=sa;Password=secret;Database=master;",
@@ -115,5 +144,17 @@ fn GivenConnectionStringWithoutDatabase_WhenParsed_ThenResult_ShouldReturnMissin
     assert_eq!(
         result,
         Err(RepositoryError::InvalidConfiguration("missing database"))
+    );
+}
+
+#[test]
+fn GivenConnectionStringWithInvalidServerPort_WhenParsed_ThenResult_ShouldReturnInvalidPort() {
+    let result = SqlServerConnectionConfig::from_connection_string(
+        "Server=localhost,not-a-number;User Id=sa;Password=secret;Database=master;",
+    );
+
+    assert_eq!(
+        result,
+        Err(RepositoryError::InvalidConfiguration("invalid port"))
     );
 }

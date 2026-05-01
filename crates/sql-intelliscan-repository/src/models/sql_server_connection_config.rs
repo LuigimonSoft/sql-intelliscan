@@ -147,11 +147,15 @@ impl SqlServerConnectionConfig {
                 "server" | "data source" => {
                     let mut host_parts = value.split(',');
                     config.host = host_parts.next().unwrap_or_default().trim().to_owned();
-                    if let Some(parsed_port) = host_parts
-                        .next()
-                        .and_then(|item| item.trim().parse::<u16>().ok())
-                    {
-                        config.port = parsed_port;
+                    if let Some(port) = host_parts.next() {
+                        if host_parts.next().is_some() {
+                            return Err(RepositoryError::InvalidConfiguration("invalid port"));
+                        }
+
+                        config.port = port
+                            .trim()
+                            .parse::<u16>()
+                            .map_err(|_| RepositoryError::InvalidConfiguration("invalid port"))?;
                     }
                 }
                 "user id" | "uid" | "user" => config.username = value.to_owned(),
