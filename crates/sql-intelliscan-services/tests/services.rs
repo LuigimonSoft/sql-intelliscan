@@ -2,7 +2,10 @@
 
 mod test_utils;
 
+use std::sync::Arc;
+
 use sql_intelliscan_services::{
+    contracts::ConnectionRepositoryContract,
     errors::{DataAccessError, ServiceError},
     models::ConnectionTestResult,
     AuditService, ConfigurationService, ConnectionService, GreetingService,
@@ -41,6 +44,28 @@ fn GivenConnectionRepository_WhenBooleanValidationIsRequested_ThenService_Should
     let result = futures::executor::block_on(service.validate_connection());
 
     assert_eq!(result, Ok(true));
+}
+
+#[test]
+fn GivenConnectionRepositoryContract_WhenStoredBehindArc_ThenContract_ShouldBeSendSyncCompatible() {
+    let repository: Arc<dyn ConnectionRepositoryContract + Send + Sync> =
+        Arc::new(MockConnectionRepository::succeeds());
+
+    let result = futures::executor::block_on(repository.test_connection());
+
+    assert_eq!(result, Ok(ConnectionTestResult::valid()));
+}
+
+#[test]
+fn GivenConnectionRepositoryContractMock_WhenConnectionFails_ThenContract_ShouldReturnServiceError()
+{
+    let repository: Arc<dyn ConnectionRepositoryContract + Send + Sync> = Arc::new(
+        MockConnectionRepository::fails_with(DataAccessError::SourceUnavailable),
+    );
+
+    let result = futures::executor::block_on(repository.test_connection());
+
+    assert_eq!(result, Err(ServiceError::SourceUnavailable));
 }
 
 #[test]
