@@ -1,6 +1,8 @@
 #![allow(non_snake_case)]
 
-use sql_intelliscan_repository::{ConnectionConfigValidationError, SqlServerConnectionConfig};
+use sql_intelliscan_repository::{
+    ConnectionConfigValidationError, RepositoryError, SqlServerConnectionConfig,
+};
 
 #[test]
 fn GivenValidConfiguration_WhenValidated_ThenResult_ShouldReturnOk() {
@@ -90,4 +92,28 @@ fn GivenSensitivePassword_WhenDebugFormatted_ThenOutput_ShouldMaskSecret() {
 
     assert!(!debug_output.contains("super-secret"));
     assert!(debug_output.contains("\"***\""));
+}
+
+#[test]
+fn GivenConnectionStringWithoutServer_WhenParsed_ThenResult_ShouldReturnMissingHost() {
+    let result = SqlServerConnectionConfig::from_connection_string(
+        "User Id=sa;Password=secret;Database=master;",
+    );
+
+    assert_eq!(
+        result,
+        Err(RepositoryError::InvalidConfiguration("missing host"))
+    );
+}
+
+#[test]
+fn GivenConnectionStringWithoutDatabase_WhenParsed_ThenResult_ShouldReturnMissingDatabase() {
+    let result = SqlServerConnectionConfig::from_connection_string(
+        "Server=localhost;User Id=sa;Password=secret;",
+    );
+
+    assert_eq!(
+        result,
+        Err(RepositoryError::InvalidConfiguration("missing database"))
+    );
 }

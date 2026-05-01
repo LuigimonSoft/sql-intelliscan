@@ -124,7 +124,11 @@ impl SqlServerConnectionConfig {
     }
 
     pub fn from_connection_string(connection_string: &str) -> RepositoryResult<Self> {
-        let mut config = Self::default();
+        let mut config = Self {
+            host: String::new(),
+            database: String::new(),
+            ..Self::default()
+        };
 
         for token in connection_string
             .split(';')
