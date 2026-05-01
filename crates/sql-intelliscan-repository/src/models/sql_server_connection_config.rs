@@ -165,14 +165,15 @@ impl SqlServerConnectionConfig {
                     config.trust_server_certificate =
                         matches!(value.to_ascii_lowercase().as_str(), "true" | "1" | "yes")
                 }
-                "encrypt" => {
-                    config.encrypt =
-                        !matches!(value.to_ascii_lowercase().as_str(), "false" | "0" | "no")
-                }
+                "encrypt" => match value.to_ascii_lowercase().as_str() {
+                    "true" | "1" | "yes" => config.encrypt = true,
+                    "false" | "0" | "no" => config.encrypt = false,
+                    _ => return Err(RepositoryError::InvalidConfiguration("invalid encrypt")),
+                },
                 "connection timeout" | "connect timeout" => {
-                    if let Ok(parsed_timeout) = value.parse::<u64>() {
-                        config.connection_timeout_seconds = parsed_timeout;
-                    }
+                    config.connection_timeout_seconds = value
+                        .parse::<u64>()
+                        .map_err(|_| RepositoryError::InvalidConfiguration("invalid timeout"))?;
                 }
                 "application name" => {
                     config.application_name = if value.is_empty() {

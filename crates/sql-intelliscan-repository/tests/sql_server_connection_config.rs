@@ -158,3 +158,66 @@ fn GivenConnectionStringWithInvalidServerPort_WhenParsed_ThenResult_ShouldReturn
         Err(RepositoryError::InvalidConfiguration("invalid port"))
     );
 }
+
+#[test]
+fn GivenConnectionStringWithExtendedOptions_WhenParsed_ThenConfig_ShouldPopulateOptions() {
+    let config = SqlServerConnectionConfig::from_connection_string(
+        "Server=localhost;User Id=sa;Password=secret;Database=master;Encrypt=no;Connection Timeout=45;Application Name=Sql Intelliscan Tests;",
+    )
+    .expect("connection string should parse");
+
+    assert!(!config.encrypt);
+    assert_eq!(config.connection_timeout_seconds, 45);
+    assert_eq!(
+        config.application_name,
+        Some("Sql Intelliscan Tests".to_owned())
+    );
+}
+
+#[test]
+fn GivenConnectionStringWithWhitespaceAroundExtendedOptions_WhenParsed_ThenConfig_ShouldTrimValues()
+{
+    let config = SqlServerConnectionConfig::from_connection_string(
+        "Server=localhost;User Id=sa;Password=secret;Database=master; Encrypt = false ; Connect Timeout = 60 ; Application Name = Reporting Worker ;",
+    )
+    .expect("connection string should parse");
+
+    assert!(!config.encrypt);
+    assert_eq!(config.connection_timeout_seconds, 60);
+    assert_eq!(config.application_name, Some("Reporting Worker".to_owned()));
+}
+
+#[test]
+fn GivenConnectionStringWithBlankApplicationName_WhenParsed_ThenConfig_ShouldUseNoApplicationName()
+{
+    let config = SqlServerConnectionConfig::from_connection_string(
+        "Server=localhost;User Id=sa;Password=secret;Database=master;Application Name=   ;",
+    )
+    .expect("connection string should parse");
+
+    assert_eq!(config.application_name, None);
+}
+
+#[test]
+fn GivenConnectionStringWithInvalidEncrypt_WhenParsed_ThenResult_ShouldReturnInvalidEncrypt() {
+    let result = SqlServerConnectionConfig::from_connection_string(
+        "Server=localhost;User Id=sa;Password=secret;Database=master;Encrypt=maybe;",
+    );
+
+    assert_eq!(
+        result,
+        Err(RepositoryError::InvalidConfiguration("invalid encrypt"))
+    );
+}
+
+#[test]
+fn GivenConnectionStringWithInvalidTimeout_WhenParsed_ThenResult_ShouldReturnInvalidTimeout() {
+    let result = SqlServerConnectionConfig::from_connection_string(
+        "Server=localhost;User Id=sa;Password=secret;Database=master;Connection Timeout=soon;",
+    );
+
+    assert_eq!(
+        result,
+        Err(RepositoryError::InvalidConfiguration("invalid timeout"))
+    );
+}
