@@ -1,5 +1,3 @@
-#![allow(async_fn_in_trait)]
-
 use std::future::Future;
 
 use async_trait::async_trait;

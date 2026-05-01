@@ -46,11 +46,16 @@ impl ConnectionRepositoryFactory for SqlServerConnectionRepositoryFactory {
 pub struct SqlServerConnectionRepositoryAdapter(SqlServerConnectionRepository);
 
 impl ServiceConnectionRepository for SqlServerConnectionRepositoryAdapter {
-    async fn validate_connection(&self) -> DataAccessResult<bool> {
-        self.0
-            .validate_connection()
-            .await
-            .map_err(map_repository_error_to_data_access)
+    #[allow(clippy::manual_async_fn)]
+    fn validate_connection(
+        &self,
+    ) -> impl std::future::Future<Output = DataAccessResult<bool>> + Send {
+        async move {
+            self.0
+                .validate_connection()
+                .await
+                .map_err(map_repository_error_to_data_access)
+        }
     }
 }
 
