@@ -4,9 +4,14 @@ pub mod connection;
 pub mod contracts;
 pub mod errors;
 pub mod models;
+pub mod repository_wiring;
 pub mod use_cases;
 
 pub use audit::AuditService;
 pub use configuration::ConfigurationService;
 pub use connection::ConnectionService;
+pub use repository_wiring::{
+    BackendMetadataRepositoryAdapter, SqlServerConnectionRepositoryAdapter,
+    SqlServerConnectionRepositoryFactory,
+};
 pub use use_cases::GreetingService;

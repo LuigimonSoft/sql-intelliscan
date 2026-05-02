@@ -1,14 +1,7 @@
-use std::time::Instant;
-
 use mssqlrust::{dataset::DataValue, execute_scalar, infrastructure::mssql::MssqlConfig, Command};
-use sql_intelliscan_services::{
-    contracts::ConnectionRepository as ServiceConnectionRepository,
-    errors::{DataAccessError, DataAccessResult},
-    models::ConnectionTestResult,
-};
 
 use crate::{
-    contracts::ConnectionRepository as RepositoryConnectionRepository,
+    contracts::ConnectionRepository,
     errors::{RepositoryError, RepositoryResult},
     models::SqlServerConnectionConfig,
 };
@@ -79,7 +72,7 @@ impl SqlServerConnectionRepository {
         )
     }
 
-    async fn execute_validation_query(&self) -> DataAccessResult<Option<DataValue>> {
+    async fn execute_validation_query(&self) -> RepositoryResult<Option<DataValue>> {
         let command = Command::query("SELECT 1");
 
         self.client
@@ -88,18 +81,18 @@ impl SqlServerConnectionRepository {
             .map_err(Self::map_driver_error)
     }
 
-    fn map_driver_error(error: String) -> DataAccessError {
+    fn map_driver_error(error: String) -> RepositoryError {
         let normalized = error.to_ascii_lowercase();
 
         if normalized.contains("login failed")
             || normalized.contains("authentication")
             || normalized.contains("password")
         {
-            return DataAccessError::InvalidConfiguration("authentication failed");
+            return RepositoryError::InvalidConfiguration("authentication failed");
         }
 
         if normalized.contains("timeout") || normalized.contains("timed out") {
-            return DataAccessError::QueryExecutionFailed("connection timeout".to_owned());
+            return RepositoryError::QueryExecutionFailed("connection timeout".to_owned());
         }
 
         if normalized.contains("network")
@@ -108,10 +101,10 @@ impl SqlServerConnectionRepository {
             || normalized.contains("could not connect")
             || normalized.contains("unreachable")
         {
-            return DataAccessError::SourceUnavailable;
+            return RepositoryError::SourceUnavailable;
         }
 
-        DataAccessError::QueryExecutionFailed("SQL Server validation query failed".to_owned())
+        RepositoryError::QueryExecutionFailed("SQL Server validation query failed".to_owned())
     }
 
     fn map_validation_result(result: Option<DataValue>) -> RepositoryResult<bool> {
@@ -128,102 +121,11 @@ impl SqlServerConnectionRepository {
             )),
         }
     }
-
-    fn map_repository_error_to_data_access(error: RepositoryError) -> DataAccessError {
-        match error {
-            RepositoryError::SourceUnavailable => DataAccessError::SourceUnavailable,
-            RepositoryError::InvalidConfiguration(reason) => {
-                DataAccessError::InvalidConfiguration(reason)
-            }
-            RepositoryError::QueryExecutionFailed(reason) => {
-                DataAccessError::QueryExecutionFailed(reason)
-            }
-            RepositoryError::ResultMappingFailed(reason) => {
-                DataAccessError::ResultMappingFailed(reason)
-            }
-        }
-    }
-
-    fn elapsed_millis(started_at: Instant) -> u64 {
-        started_at
-            .elapsed()
-            .as_millis()
-            .try_into()
-            .unwrap_or(u64::MAX)
-    }
 }
 
-impl ServiceConnectionRepository for SqlServerConnectionRepository {
-    #[allow(clippy::manual_async_fn)]
-    fn validate_connection(
-        &self,
-    ) -> impl std::future::Future<Output = DataAccessResult<ConnectionTestResult>> + Send {
-        async move {
-            self.config.validate().map_err(|errors| {
-                let first = errors
-                    .first()
-                    .map(|error| match error {
-                        crate::models::ConnectionConfigValidationError::HostRequired => {
-                            "missing host"
-                        }
-                        crate::models::ConnectionConfigValidationError::DatabaseRequired => {
-                            "missing database"
-                        }
-                        crate::models::ConnectionConfigValidationError::UsernameRequired => {
-                            "missing username"
-                        }
-                        crate::models::ConnectionConfigValidationError::PasswordRequired => {
-                            "missing password"
-                        }
-                        crate::models::ConnectionConfigValidationError::InvalidPort => {
-                            "invalid port"
-                        }
-                        crate::models::ConnectionConfigValidationError::InvalidTimeout => {
-                            "invalid timeout"
-                        }
-                        crate::models::ConnectionConfigValidationError::InvalidApplicationName => {
-                            "invalid application name"
-                        }
-                    })
-                    .unwrap_or("invalid SQL Server connection configuration");
-
-                DataAccessError::InvalidConfiguration(first)
-            })?;
-
-            let started_at = Instant::now();
-            let scalar = self.execute_validation_query().await?;
-            let is_valid = Self::map_validation_result(scalar)
-                .map_err(Self::map_repository_error_to_data_access)?;
-
-            Ok(if is_valid {
-                ConnectionTestResult::valid_with_details(
-                    Some(self.config.database.clone()),
-                    Some(Self::elapsed_millis(started_at)),
-                )
-            } else {
-                ConnectionTestResult::invalid()
-            })
-        }
-    }
-}
-
-impl RepositoryConnectionRepository for SqlServerConnectionRepository {
+impl ConnectionRepository for SqlServerConnectionRepository {
     async fn validate_connection(&self) -> RepositoryResult<bool> {
-        let scalar = self
-            .execute_validation_query()
-            .await
-            .map_err(|error| match error {
-                DataAccessError::SourceUnavailable => RepositoryError::SourceUnavailable,
-                DataAccessError::InvalidConfiguration(reason) => {
-                    RepositoryError::InvalidConfiguration(reason)
-                }
-                DataAccessError::QueryExecutionFailed(reason) => {
-                    RepositoryError::QueryExecutionFailed(reason)
-                }
-                DataAccessError::ResultMappingFailed(reason) => {
-                    RepositoryError::ResultMappingFailed(reason)
-                }
-            })?;
+        let scalar = self.execute_validation_query().await?;
 
         Self::map_validation_result(scalar)
     }
@@ -236,10 +138,6 @@ mod tests {
 
     use crate::{
         contracts::ConnectionRepository, errors::RepositoryError, models::SqlServerConnectionConfig,
-    };
-    use sql_intelliscan_services::{
-        contracts::ConnectionRepository as ServiceConnectionRepository, errors::DataAccessError,
-        models::ConnectionTestResult,
     };
 
     use super::{SqlServerConnectionRepository, TestMssqlScalarClient};
@@ -277,18 +175,6 @@ mod tests {
             _command: Command,
         ) -> Result<Option<DataValue>, String> {
             Err("tcp timeout".to_owned())
-        }
-    }
-
-    struct AuthenticationFailingClient;
-
-    impl TestMssqlScalarClient for AuthenticationFailingClient {
-        fn execute_scalar(
-            &self,
-            _config: MssqlConfig,
-            _command: Command,
-        ) -> Result<Option<DataValue>, String> {
-            Err("Login failed for user 'sa' with password".to_owned())
         }
     }
 
@@ -419,56 +305,17 @@ mod tests {
     }
 
     #[test]
-    fn GivenMockClient_WhenServiceValidationIsRequested_ThenRepository_ShouldReturnConnectionResult(
-    ) {
-        let repository = SqlServerConnectionRepository::with_client(build_config(), SuccessClient);
-
-        let result = futures::executor::block_on(ServiceConnectionRepository::validate_connection(
-            &repository,
-        ))
-        .expect("mock validation should succeed");
-
-        assert_eq!(
-            result,
-            ConnectionTestResult {
-                latency_ms: result.latency_ms,
-                ..ConnectionTestResult::valid_with_details(Some("master".to_owned()), None)
-            }
-        );
-        assert!(result.latency_ms.is_some());
-    }
-
-    #[test]
-    fn GivenAuthenticationFailure_WhenServiceValidationIsRequested_ThenRepository_ShouldReturnSafeError(
-    ) {
-        let repository =
-            SqlServerConnectionRepository::with_client(build_config(), AuthenticationFailingClient);
-
-        let result = futures::executor::block_on(ServiceConnectionRepository::validate_connection(
-            &repository,
-        ));
-
-        assert_eq!(
-            result,
-            Err(DataAccessError::InvalidConfiguration(
-                "authentication failed"
-            ))
-        );
-    }
-
-    #[test]
-    fn GivenDriverFailureWithSensitiveDetails_WhenServiceValidationIsRequested_ThenRepository_ShouldNotExposeDetails(
+    fn GivenDriverFailureWithSensitiveDetails_WhenValidationIsRequested_ThenRepository_ShouldNotExposeDetails(
     ) {
         let repository =
             SqlServerConnectionRepository::with_client(build_config(), GenericFailingClient);
 
-        let result = futures::executor::block_on(ServiceConnectionRepository::validate_connection(
-            &repository,
-        ));
+        let result =
+            futures::executor::block_on(ConnectionRepository::validate_connection(&repository));
 
         assert_eq!(
             result,
-            Err(DataAccessError::QueryExecutionFailed(
+            Err(RepositoryError::QueryExecutionFailed(
                 "SQL Server validation query failed".to_owned()
             ))
         );

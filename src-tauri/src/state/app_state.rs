@@ -3,11 +3,8 @@ use std::sync::Arc;
 use sql_intelliscan_services::{
     errors::{ServiceError, ServiceResult},
     models::ConnectionTestResult,
-    ConnectionService, GreetingService,
-};
-
-use crate::dependency_wiring::{
-    BackendMetadataRepositoryAdapter, SqlServerConnectionRepositoryFactory,
+    BackendMetadataRepositoryAdapter, ConnectionService, GreetingService,
+    SqlServerConnectionRepositoryFactory,
 };
 
 pub(crate) type AppGreetingService = GreetingService<BackendMetadataRepositoryAdapter>;
