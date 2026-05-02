@@ -1,14 +1,12 @@
 use std::sync::{Arc, OnceLock};
 
 use sql_intelliscan_repository::{
-    BackendMetadataRepository as RepositoryBackendMetadataRepository,
-    ConnectionRepository as RepositoryConnectionRepository, RepositoryError,
+    BackendMetadataRepository as RepositoryBackendMetadataRepository, RepositoryError,
     SqlServerConnectionConfig, SqlServerConnectionRepository, StaticBackendMetadataRepository,
 };
 use sql_intelliscan_services::{
     contracts::{
-        BackendMetadataRepository as ServiceBackendMetadataRepository,
-        ConnectionRepository as ServiceConnectionRepository, ConnectionRepositoryFactory,
+        BackendMetadataRepository as ServiceBackendMetadataRepository, ConnectionRepositoryFactory,
     },
     errors::{DataAccessError, DataAccessResult, ServiceError},
     ConnectionService, GreetingService,
@@ -31,31 +29,13 @@ impl ServiceBackendMetadataRepository for BackendMetadataRepositoryAdapter {
 pub struct SqlServerConnectionRepositoryFactory;
 
 impl ConnectionRepositoryFactory for SqlServerConnectionRepositoryFactory {
-    type Repository = SqlServerConnectionRepositoryAdapter;
+    type Repository = SqlServerConnectionRepository;
 
     fn build(&self, connection_string: &str) -> DataAccessResult<Self::Repository> {
         let config = SqlServerConnectionConfig::from_connection_string(connection_string)
             .map_err(map_repository_error_to_data_access)?;
 
-        Ok(SqlServerConnectionRepositoryAdapter(
-            SqlServerConnectionRepository::new(config),
-        ))
-    }
-}
-
-pub struct SqlServerConnectionRepositoryAdapter(SqlServerConnectionRepository);
-
-impl ServiceConnectionRepository for SqlServerConnectionRepositoryAdapter {
-    #[allow(clippy::manual_async_fn)]
-    fn validate_connection(
-        &self,
-    ) -> impl std::future::Future<Output = DataAccessResult<bool>> + Send {
-        async move {
-            self.0
-                .validate_connection()
-                .await
-                .map_err(map_repository_error_to_data_access)
-        }
+        Ok(SqlServerConnectionRepository::new(config))
     }
 }
 

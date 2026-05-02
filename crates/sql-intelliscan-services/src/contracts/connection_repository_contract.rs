@@ -18,18 +18,14 @@ where
     T: ConnectionRepository + Send + Sync,
 {
     async fn test_connection(&self) -> ServiceResult<ConnectionTestResult> {
-        let is_valid = self.validate_connection().await?;
-
-        Ok(if is_valid {
-            ConnectionTestResult::valid()
-        } else {
-            ConnectionTestResult::invalid()
-        })
+        self.validate_connection().await.map_err(Into::into)
     }
 }
 
 pub trait ConnectionRepository {
-    fn validate_connection(&self) -> impl Future<Output = DataAccessResult<bool>> + Send;
+    fn validate_connection(
+        &self,
+    ) -> impl Future<Output = DataAccessResult<ConnectionTestResult>> + Send;
 }
 
 pub trait ConnectionRepositoryFactory {

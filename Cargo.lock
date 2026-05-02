@@ -4596,6 +4596,7 @@ dependencies = [
  "futures",
  "mssqlrust",
  "sql-intelliscan-common",
+ "sql-intelliscan-services",
  "tokio",
 ]
 
