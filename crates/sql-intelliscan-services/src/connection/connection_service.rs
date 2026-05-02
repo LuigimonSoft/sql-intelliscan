@@ -20,13 +20,10 @@ where
     R: ConnectionRepository,
 {
     pub async fn test_connection(&self) -> ServiceResult<ConnectionTestResult> {
-        let is_valid = self.repository.validate_connection().await?;
-
-        Ok(if is_valid {
-            ConnectionTestResult::valid()
-        } else {
-            ConnectionTestResult::invalid()
-        })
+        self.repository
+            .validate_connection()
+            .await
+            .map_err(Into::into)
     }
 
     pub async fn validate_connection(&self) -> ServiceResult<bool> {
@@ -43,13 +40,7 @@ where
         connection_string: &str,
     ) -> ServiceResult<ConnectionTestResult> {
         let repository = self.repository.build(connection_string)?;
-        let is_valid = repository.validate_connection().await?;
-
-        Ok(if is_valid {
-            ConnectionTestResult::valid()
-        } else {
-            ConnectionTestResult::invalid()
-        })
+        repository.validate_connection().await.map_err(Into::into)
     }
 
     pub async fn validate_configured_connection(

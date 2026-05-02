@@ -79,6 +79,26 @@ fn GivenConnectionRepositoryReturnsFalse_WhenValidationIsRequested_ThenService_S
 }
 
 #[test]
+fn GivenConnectionDetails_WhenResultIsCreated_ThenModel_ShouldExposeSafeMetadata() {
+    let result = ConnectionTestResult::valid_with_details(Some("master".to_owned()), Some(42));
+
+    assert!(result.is_valid);
+    assert_eq!(result.message, "Connection successful");
+    assert_eq!(result.database, Some("master".to_owned()));
+    assert_eq!(result.latency_ms, Some(42));
+}
+
+#[test]
+fn GivenInvalidConnectionResult_WhenCreated_ThenModel_ShouldUseFailureMessage() {
+    let result = ConnectionTestResult::invalid();
+
+    assert!(!result.is_valid);
+    assert_eq!(result.message, "Connection failed");
+    assert_eq!(result.database, None);
+    assert_eq!(result.latency_ms, None);
+}
+
+#[test]
 fn GivenConnectionRepositoryFailure_WhenValidationIsRequested_ThenService_ShouldReturnServiceError()
 {
     let service = ConnectionService::new(MockConnectionRepository::fails_with(

@@ -4578,7 +4578,6 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
- "sql-intelliscan-repository",
  "sql-intelliscan-services",
  "tauri",
  "tauri-build",
@@ -4606,6 +4605,7 @@ dependencies = [
  "async-trait",
  "futures",
  "serde",
+ "sql-intelliscan-repository",
 ]
 
 [[package]]

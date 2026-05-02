@@ -4,20 +4,25 @@ use std::rc::Rc;
 use sql_intelliscan_services::{
     contracts::{ConnectionRepository, ConnectionRepositoryFactory},
     errors::{DataAccessError, DataAccessResult},
+    models::ConnectionTestResult,
 };
 
 #[derive(Clone, Debug)]
 pub struct MockConnectionRepository {
-    result: DataAccessResult<bool>,
+    result: DataAccessResult<ConnectionTestResult>,
 }
 
 impl MockConnectionRepository {
     pub fn succeeds() -> Self {
-        Self { result: Ok(true) }
+        Self {
+            result: Ok(ConnectionTestResult::valid()),
+        }
     }
 
     pub fn rejects_connection() -> Self {
-        Self { result: Ok(false) }
+        Self {
+            result: Ok(ConnectionTestResult::invalid()),
+        }
     }
 
     pub fn fails_with(error: DataAccessError) -> Self {
@@ -29,7 +34,7 @@ impl ConnectionRepository for MockConnectionRepository {
     #[allow(clippy::manual_async_fn)]
     fn validate_connection(
         &self,
-    ) -> impl std::future::Future<Output = DataAccessResult<bool>> + Send {
+    ) -> impl std::future::Future<Output = DataAccessResult<ConnectionTestResult>> + Send {
         let result = self.result.clone();
 
         async move { result }

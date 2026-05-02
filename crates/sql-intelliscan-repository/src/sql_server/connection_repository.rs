@@ -62,6 +62,9 @@ impl SqlServerConnectionRepository {
     }
 
     fn to_mssql_config(&self) -> MssqlConfig {
+        // mssqlrust 1.0.2 exposes only these connection options. The richer
+        // SqlServerConnectionConfig keeps unsupported settings parsed for
+        // forward compatibility without leaking them outside the repository.
         MssqlConfig::new(
             &self.config.host,
             self.config.port,
@@ -70,6 +73,41 @@ impl SqlServerConnectionRepository {
             &self.config.database,
             self.config.trust_server_certificate,
         )
+    }
+
+    async fn execute_validation_query(&self) -> RepositoryResult<Option<DataValue>> {
+        let command = Command::query("SELECT 1");
+
+        self.client
+            .execute_scalar(self.to_mssql_config(), command)
+            .await
+            .map_err(Self::map_driver_error)
+    }
+
+    fn map_driver_error(error: String) -> RepositoryError {
+        let normalized = error.to_ascii_lowercase();
+
+        if normalized.contains("login failed")
+            || normalized.contains("authentication")
+            || normalized.contains("password")
+        {
+            return RepositoryError::InvalidConfiguration("authentication failed");
+        }
+
+        if normalized.contains("timeout") || normalized.contains("timed out") {
+            return RepositoryError::QueryExecutionFailed("connection timeout".to_owned());
+        }
+
+        if normalized.contains("network")
+            || normalized.contains("tcp")
+            || normalized.contains("connection refused")
+            || normalized.contains("could not connect")
+            || normalized.contains("unreachable")
+        {
+            return RepositoryError::SourceUnavailable;
+        }
+
+        RepositoryError::QueryExecutionFailed("SQL Server validation query failed".to_owned())
     }
 
     fn map_validation_result(result: Option<DataValue>) -> RepositoryResult<bool> {
@@ -90,13 +128,7 @@ impl SqlServerConnectionRepository {
 
 impl ConnectionRepository for SqlServerConnectionRepository {
     async fn validate_connection(&self) -> RepositoryResult<bool> {
-        let command = Command::query("SELECT 1");
-
-        let scalar = self
-            .client
-            .execute_scalar(self.to_mssql_config(), command)
-            .await
-            .map_err(RepositoryError::QueryExecutionFailed)?;
+        let scalar = self.execute_validation_query().await?;
 
         Self::map_validation_result(scalar)
     }
@@ -146,6 +178,18 @@ mod tests {
             _command: Command,
         ) -> Result<Option<DataValue>, String> {
             Err("tcp timeout".to_owned())
+        }
+    }
+
+    struct GenericFailingClient;
+
+    impl TestMssqlScalarClient for GenericFailingClient {
+        fn execute_scalar(
+            &self,
+            _config: MssqlConfig,
+            _command: Command,
+        ) -> Result<Option<DataValue>, String> {
+            Err("server returned secret connection string details".to_owned())
         }
     }
 
@@ -226,7 +270,8 @@ mod tests {
     fn GivenMockClient_WhenValidationIsRequested_ThenRepository_ShouldReturnTrue() {
         let repository = SqlServerConnectionRepository::with_client(build_config(), SuccessClient);
 
-        let result = futures::executor::block_on(repository.validate_connection());
+        let result =
+            futures::executor::block_on(ConnectionRepository::validate_connection(&repository));
 
         assert_eq!(result, Ok(true));
     }
@@ -236,7 +281,8 @@ mod tests {
         let repository =
             SqlServerConnectionRepository::with_client(build_config(), InvalidTypeClient);
 
-        let result = futures::executor::block_on(repository.validate_connection());
+        let result =
+            futures::executor::block_on(ConnectionRepository::validate_connection(&repository));
 
         assert_eq!(
             result,
@@ -250,12 +296,30 @@ mod tests {
     fn GivenMssqlClientFailure_WhenValidationIsRequested_ThenRepository_ShouldMapError() {
         let repository = SqlServerConnectionRepository::with_client(build_config(), FailingClient);
 
-        let result = futures::executor::block_on(repository.validate_connection());
+        let result =
+            futures::executor::block_on(ConnectionRepository::validate_connection(&repository));
 
         assert_eq!(
             result,
             Err(RepositoryError::QueryExecutionFailed(
-                "tcp timeout".to_owned()
+                "connection timeout".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn GivenDriverFailureWithSensitiveDetails_WhenValidationIsRequested_ThenRepository_ShouldNotExposeDetails(
+    ) {
+        let repository =
+            SqlServerConnectionRepository::with_client(build_config(), GenericFailingClient);
+
+        let result =
+            futures::executor::block_on(ConnectionRepository::validate_connection(&repository));
+
+        assert_eq!(
+            result,
+            Err(RepositoryError::QueryExecutionFailed(
+                "SQL Server validation query failed".to_owned()
             ))
         );
     }
