@@ -4,6 +4,7 @@ mod response_models;
 
 use tauri::State;
 
+pub use connection_commands::ValidateConnectionRequest;
 pub use response_models::{CommandErrorResponse, CommandSuccessResponse};
 use sql_intelliscan_services::models::ConnectionTestResult;
 
@@ -17,9 +18,9 @@ pub fn greet_command(state: State<'_, AppState>, name: &str) -> CommandSuccessRe
 #[tauri::command]
 pub async fn validate_sql_server_connection_command(
     state: State<'_, AppState>,
-    connection_string: String,
+    request: ValidateConnectionRequest,
 ) -> Result<CommandSuccessResponse<ConnectionTestResult>, CommandErrorResponse> {
-    connection_commands::validate_sql_server_connection_command(state, connection_string).await
+    connection_commands::validate_sql_server_connection_command(state, request).await
 }
 
 pub fn greet_with_state(state: &AppState, name: &str) -> String {
