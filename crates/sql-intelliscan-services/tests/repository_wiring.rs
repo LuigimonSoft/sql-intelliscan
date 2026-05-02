@@ -3,7 +3,7 @@
 use sql_intelliscan_services::{
     contracts::{BackendMetadataRepository, ConnectionRepositoryFactory},
     errors::DataAccessError,
-    BackendMetadataRepositoryAdapter, SqlServerConnectionRepositoryFactory,
+    repository_wiring::{BackendMetadataRepositoryAdapter, SqlServerConnectionRepositoryFactory},
 };
 
 #[test]

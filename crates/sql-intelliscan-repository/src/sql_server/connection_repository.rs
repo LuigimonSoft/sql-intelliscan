@@ -62,6 +62,9 @@ impl SqlServerConnectionRepository {
     }
 
     fn to_mssql_config(&self) -> MssqlConfig {
+        // mssqlrust 1.0.2 exposes only these connection options. The richer
+        // SqlServerConnectionConfig keeps unsupported settings parsed for
+        // forward compatibility without leaking them outside the repository.
         MssqlConfig::new(
             &self.config.host,
             self.config.port,

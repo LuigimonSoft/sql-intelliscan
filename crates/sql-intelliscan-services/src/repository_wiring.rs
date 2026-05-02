@@ -1,3 +1,10 @@
+//! Application service wiring for concrete repository implementations.
+//!
+//! `src-tauri` must not depend on `sql-intelliscan-repository` directly, so
+//! this module is the backend composition boundary that adapts concrete
+//! repositories into service contracts. The crate root intentionally does not
+//! re-export these concrete SQL Server types.
+
 use std::{future::Future, pin::Pin, time::Instant};
 
 use sql_intelliscan_repository::{

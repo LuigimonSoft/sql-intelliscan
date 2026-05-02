@@ -1,8 +1,9 @@
 use std::sync::{Arc, OnceLock};
 
 use sql_intelliscan_services::{
-    errors::ServiceError, BackendMetadataRepositoryAdapter, ConnectionService, GreetingService,
-    SqlServerConnectionRepositoryFactory,
+    errors::ServiceError,
+    repository_wiring::{BackendMetadataRepositoryAdapter, SqlServerConnectionRepositoryFactory},
+    ConnectionService, GreetingService,
 };
 
 use crate::state::{AppState, AppStateResult};
