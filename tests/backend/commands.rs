@@ -92,10 +92,10 @@ impl GreetingServicePort for MockGreetingService {
 struct MockConnectionService;
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 impl ConnectionServicePort for MockConnectionService {
-    fn validate_sql_server_connection(
-        &self,
-        _connection_string: &str,
-    ) -> BoxFuture<'_, Result<sql_intelliscan_lib::models::ConnectionTestResult, ServiceError>> {
+    fn validate_sql_server_connection<'a>(
+        &'a self,
+        _connection_string: &'a str,
+    ) -> BoxFuture<'a, Result<sql_intelliscan_lib::models::ConnectionTestResult, ServiceError>> {
         Box::pin(async { Err(ServiceError::SourceUnavailable) })
     }
 }

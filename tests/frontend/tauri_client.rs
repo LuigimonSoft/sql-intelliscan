@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use sql_intelliscan_ui::services::tauri_client::{
-    invoke_backend_greet, invoke_validate_sql_server_connection,
+    invoke_backend_greet, invoke_validate_sql_server_connection, validate_connection_args,
 };
 
 #[test]
@@ -22,4 +22,14 @@ fn GivenConnectionString_WhenValidateCommandIsInvoked_ThenMockedResponse_ShouldM
 
     assert_eq!(response.message, "Connection validated successfully");
     assert!(response.data.is_valid);
+}
+
+#[test]
+fn GivenConnectionString_WhenValidateArgsAreBuilt_ThenCommand_ShouldNestRequestPayload() {
+    let args = validate_connection_args("Server=localhost;Database=master");
+
+    assert_eq!(
+        args.request.connection_string,
+        "Server=localhost;Database=master"
+    );
 }

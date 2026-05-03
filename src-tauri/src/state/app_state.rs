@@ -18,10 +18,10 @@ pub trait GreetingServicePort: Send + Sync {
 }
 
 pub trait ConnectionServicePort: Send + Sync {
-    fn validate_sql_server_connection(
-        &self,
-        connection_string: &str,
-    ) -> ConnectionValidationFuture<'_>;
+    fn validate_sql_server_connection<'a>(
+        &'a self,
+        connection_string: &'a str,
+    ) -> ConnectionValidationFuture<'a>;
 }
 
 impl GreetingServicePort for AppGreetingService {
@@ -31,12 +31,11 @@ impl GreetingServicePort for AppGreetingService {
 }
 
 impl ConnectionServicePort for AppConnectionService {
-    fn validate_sql_server_connection(
-        &self,
-        connection_string: &str,
-    ) -> ConnectionValidationFuture<'_> {
-        let connection_string = connection_string.to_string();
-        Box::pin(async move { self.test_configured_connection(&connection_string).await })
+    fn validate_sql_server_connection<'a>(
+        &'a self,
+        connection_string: &'a str,
+    ) -> ConnectionValidationFuture<'a> {
+        Box::pin(self.test_configured_connection(connection_string))
     }
 }
 
