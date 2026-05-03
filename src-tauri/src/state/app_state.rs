@@ -1,7 +1,7 @@
 use std::{future::Future, pin::Pin, sync::Arc};
 
 use sql_intelliscan_services::{
-    errors::{ServiceError, ServiceResult},
+    errors::ServiceResult,
     models::ConnectionTestResult,
     repository_wiring::{BackendMetadataRepositoryAdapter, SqlServerConnectionRepositoryFactory},
     ConnectionService, GreetingService,
@@ -11,17 +11,17 @@ pub(crate) type AppGreetingService = GreetingService<BackendMetadataRepositoryAd
 pub(crate) type AppConnectionService = ConnectionService<SqlServerConnectionRepositoryFactory>;
 
 type ConnectionValidationFuture<'a> =
-    Pin<Box<dyn Future<Output = Result<ConnectionTestResult, ServiceError>> + Send + 'a>>;
+    Pin<Box<dyn Future<Output = ServiceResult<ConnectionTestResult>> + Send + 'a>>;
 
 pub trait GreetingServicePort: Send + Sync {
     fn greet(&self, name: &str) -> String;
 }
 
 pub trait ConnectionServicePort: Send + Sync {
-    fn validate_sql_server_connection<'a>(
-        &'a self,
-        connection_string: &'a str,
-    ) -> ConnectionValidationFuture<'a>;
+    fn validate_sql_server_connection(
+        &self,
+        connection_string: &str,
+    ) -> ConnectionValidationFuture<'_>;
 }
 
 impl GreetingServicePort for AppGreetingService {
@@ -31,11 +31,12 @@ impl GreetingServicePort for AppGreetingService {
 }
 
 impl ConnectionServicePort for AppConnectionService {
-    fn validate_sql_server_connection<'a>(
-        &'a self,
-        connection_string: &'a str,
-    ) -> ConnectionValidationFuture<'a> {
-        Box::pin(async move { self.test_configured_connection(connection_string).await })
+    fn validate_sql_server_connection(
+        &self,
+        connection_string: &str,
+    ) -> ConnectionValidationFuture<'_> {
+        let connection_string = connection_string.to_string();
+        Box::pin(async move { self.test_configured_connection(&connection_string).await })
     }
 }
 
@@ -63,7 +64,7 @@ impl AppState {
     pub async fn validate_sql_server_connection(
         &self,
         connection_string: &str,
-    ) -> Result<ConnectionTestResult, ServiceError> {
+    ) -> ServiceResult<ConnectionTestResult> {
         self.connection_service
             .validate_sql_server_connection(connection_string)
             .await

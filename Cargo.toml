@@ -26,7 +26,7 @@ futures = "0.3"
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 leptos = { version = "0.8.19", features = ["ssr"] }
 sql_intelliscan_lib = { path = "src-tauri", package = "sql-intelliscan" }
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["test"] }
 
 [workspace]
 members = [
