@@ -26,9 +26,20 @@ pub struct BackendConnectionTestResult {
     pub is_valid: bool,
 }
 
-#[derive(Serialize)]
-struct ValidateConnectionArgs<'a> {
-    connection_string: &'a str,
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ValidateConnectionRequestArgs<'a> {
+    pub connection_string: &'a str,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ValidateConnectionArgs<'a> {
+    pub request: ValidateConnectionRequestArgs<'a>,
+}
+
+pub fn validate_connection_args(connection_string: &str) -> ValidateConnectionArgs<'_> {
+    ValidateConnectionArgs {
+        request: ValidateConnectionRequestArgs { connection_string },
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -90,7 +101,7 @@ pub async fn invoke_validate_sql_server_connection(
 ) -> Result<CommandSuccessResponse<BackendConnectionTestResult>, CommandErrorResponse> {
     invoke_command(
         "validate_sql_server_connection_command",
-        &ValidateConnectionArgs { connection_string },
+        &validate_connection_args(connection_string),
     )
     .await
 }
@@ -108,7 +119,7 @@ pub async fn invoke_backend_greet(
 pub async fn invoke_validate_sql_server_connection(
     connection_string: &str,
 ) -> Result<CommandSuccessResponse<BackendConnectionTestResult>, CommandErrorResponse> {
-    let _args = ValidateConnectionArgs { connection_string };
+    let _args = validate_connection_args(connection_string);
 
     Ok(CommandSuccessResponse {
         message: "Connection validated successfully".to_string(),

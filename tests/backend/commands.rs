@@ -1,9 +1,12 @@
 #![allow(non_snake_case)]
 
+use std::{future::Future, pin::Pin, sync::Arc};
+
 use sql_intelliscan_lib::{
     build_app_state, greet_command, greet_with_state, register_handlers,
-    validate_sql_server_connection_command, validate_sql_server_connection_with_state,
-    CommandErrorResponse,
+    validate_sql_server_connection_command, validate_sql_server_connection_with_state, AppState,
+    CommandErrorResponse, ConnectionServicePort, GreetingServicePort, ServiceError,
+    ValidateConnectionRequest,
 };
 use tauri::Manager;
 
@@ -67,7 +70,9 @@ fn GivenManagedStateAndInvalidConnectionString_WhenValidateCommandIsCalled_ThenR
 
     let result = tauri::async_runtime::block_on(validate_sql_server_connection_command(
         app.state(),
-        "Server=localhost;Database=master".to_string(),
+        ValidateConnectionRequest {
+            connection_string: "Server=localhost;Database=master".to_string(),
+        },
     ));
 
     let error = result.expect_err("expected invalid configuration error");
@@ -75,4 +80,41 @@ fn GivenManagedStateAndInvalidConnectionString_WhenValidateCommandIsCalled_ThenR
         error.message,
         "The provided configuration is invalid: missing username."
     );
+}
+
+struct MockGreetingService;
+impl GreetingServicePort for MockGreetingService {
+    fn greet(&self, name: &str) -> String {
+        format!("mock-{name}")
+    }
+}
+
+struct MockConnectionService;
+type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+impl ConnectionServicePort for MockConnectionService {
+    fn validate_sql_server_connection<'a>(
+        &'a self,
+        _connection_string: &'a str,
+    ) -> BoxFuture<'a, Result<sql_intelliscan_lib::models::ConnectionTestResult, ServiceError>> {
+        Box::pin(async { Err(ServiceError::SourceUnavailable) })
+    }
+}
+
+#[test]
+fn GivenMockedServices_WhenValidateCommandRuns_ThenCommand_ShouldDelegateAndMapError() {
+    let app_state = AppState::new(Arc::new(MockGreetingService), Arc::new(MockConnectionService));
+    let app = tauri::test::mock_builder()
+        .manage(app_state)
+        .build(tauri::test::mock_context(tauri::test::noop_assets()))
+        .expect("mock app should build");
+
+    let result = tauri::async_runtime::block_on(validate_sql_server_connection_command(
+        app.state(),
+        ValidateConnectionRequest {
+            connection_string: "ignored".to_string(),
+        },
+    ));
+
+    let error = result.expect_err("expected service error");
+    assert_eq!(error.message, "The data source is currently unavailable.");
 }
