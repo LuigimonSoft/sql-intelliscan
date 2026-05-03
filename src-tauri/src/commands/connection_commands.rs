@@ -1,12 +1,18 @@
+use serde::Deserialize;
 use sql_intelliscan_services::models::ConnectionTestResult;
 
 use crate::{AppState, CommandErrorResponse, CommandSuccessResponse};
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ValidateConnectionRequest {
+    pub connection_string: String,
+}
+
 pub async fn validate_sql_server_connection_command(
     state: tauri::State<'_, AppState>,
-    connection_string: String,
+    request: ValidateConnectionRequest,
 ) -> Result<CommandSuccessResponse<ConnectionTestResult>, CommandErrorResponse> {
-    validate_sql_server_connection_with_state(state.inner(), &connection_string)
+    validate_sql_server_connection_with_state(state.inner(), &request.connection_string)
         .await
         .map(|result| CommandSuccessResponse {
             message: "Connection validated successfully".to_string(),
