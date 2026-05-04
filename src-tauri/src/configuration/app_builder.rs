@@ -1,5 +1,5 @@
+use crate::bootstrap::wiring::build_app_state;
 use crate::commands::register_handlers;
-use crate::dependency_wiring::build_app_state;
 use crate::state::AppStateResult;
 
 pub fn try_build_app() -> AppStateResult<tauri::Builder<tauri::Wry>> {
