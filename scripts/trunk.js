@@ -40,13 +40,8 @@ async function run() {
   await runTailwindBuild();
 
   if (mode === "serve") {
-    await resetDistRoots();
-    const buildExitCode = await runTrunk("build", trunkDist);
-    if (buildExitCode !== 0) {
-      process.exit(buildExitCode ?? 1);
-    }
-
-    await finalizeProjectDist();
+    await fs.rm(trunkDist, { recursive: true, force: true });
+    await fs.mkdir(trunkDist, { recursive: true });
     process.exit(await runTrunk("serve", trunkDist));
   }
 
@@ -115,14 +110,23 @@ async function resetDistRoots() {
 
 function runTrunk(trunkMode, dist) {
   return new Promise((resolve) => {
-    const child = spawn("trunk", [trunkMode, "--dist", dist], {
+    const args = [trunkMode, "--dist", dist];
+
+    if (trunkMode === "serve") {
+      args.push("--address", "127.0.0.1", "--port", "1420");
+    }
+
+    const trunkEnv = {
+      ...process.env,
+      CARGO_TARGET_DIR: trunkTarget,
+      COPYFILE_DISABLE: "1",
+      TRUNK_COLOR: "never",
+    };
+    delete trunkEnv.NO_COLOR;
+
+    const child = spawn("trunk", args, {
       stdio: "inherit",
-      env: {
-        ...process.env,
-        CARGO_TARGET_DIR: trunkTarget,
-        COPYFILE_DISABLE: "1",
-        NO_COLOR: "true",
-      },
+      env: trunkEnv,
     });
 
     child.on("exit", (code, signal) => {
