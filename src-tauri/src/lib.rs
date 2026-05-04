@@ -12,7 +12,8 @@ pub use commands::{
     ValidateConnectionRequest,
 };
 pub use config::connection_config_loader::{
-    load_connection_config_from_connection_string, CONNECTION_STRING_ENV_VAR,
+    load_connection_config, load_connection_config_from_connection_string,
+    load_connection_config_from_env_value, CONNECTION_STRING_ENV_VAR,
 };
 use configuration::run_builder;
 pub use configuration::{build_app, try_build_app};
@@ -22,7 +23,9 @@ pub use dependency_wiring::{
 pub use sql_intelliscan_services::errors::ServiceError;
 pub use sql_intelliscan_services::models;
 use state::{backend_runner, run_hooks, BackendRunner, BuilderFactory, Runner};
-pub use state::{AppState, ConnectionServicePort, GreetingServicePort};
+pub use state::{
+    AppState, ConnectionServicePort, GreetingServicePort, StartupConnectionServicePort,
+};
 
 const DEFAULT_BUILDER_FACTORY: BuilderFactory = build_app;
 const DEFAULT_RUNNER: Runner = run_builder;

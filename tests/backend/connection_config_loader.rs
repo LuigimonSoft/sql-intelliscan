@@ -1,6 +1,10 @@
 #![allow(non_snake_case)]
 
-use sql_intelliscan_lib::load_connection_config_from_connection_string;
+use std::{env::VarError, ffi::OsString};
+
+use sql_intelliscan_lib::{
+    load_connection_config_from_connection_string, load_connection_config_from_env_value,
+};
 
 #[test]
 fn GivenNoConfiguredConnectionString_WhenConfigIsLoaded_ThenDevelopmentConfig_ShouldBeValid() {
@@ -43,4 +47,34 @@ fn GivenInvalidConnectionString_WhenConfigIsLoaded_ThenError_ShouldBeSafe() {
         sql_intelliscan_lib::ServiceError::InvalidConfiguration("missing username")
     );
     assert!(!format!("{error:?}").contains("secret"));
+}
+
+#[test]
+fn GivenEmptyConnectionString_WhenConfigIsLoaded_ThenError_ShouldFailFast() {
+    let result = load_connection_config_from_connection_string(Some("   "));
+
+    let error = result.expect_err("empty configured value should be rejected");
+
+    assert_eq!(
+        error,
+        sql_intelliscan_lib::ServiceError::InvalidConfiguration(
+            "SQL Server connection string must not be empty"
+        )
+    );
+}
+
+#[test]
+fn GivenNonUnicodeEnvironmentValue_WhenConfigIsLoaded_ThenError_ShouldFailFast() {
+    let result = load_connection_config_from_env_value(Err(VarError::NotUnicode(
+        OsString::from("malformed"),
+    )));
+
+    let error = result.expect_err("malformed configured value should be rejected");
+
+    assert_eq!(
+        error,
+        sql_intelliscan_lib::ServiceError::InvalidConfiguration(
+            "SQL Server connection string must be valid Unicode"
+        )
+    );
 }

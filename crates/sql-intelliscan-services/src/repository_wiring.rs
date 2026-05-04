@@ -69,6 +69,10 @@ pub struct SqlServerConnectionRepositoryAdapter {
 
 impl SqlServerConnectionRepositoryAdapter {
     fn new(config: SqlServerConnectionConfig) -> Self {
+        Self::from_config(config)
+    }
+
+    pub fn from_config(config: SqlServerConnectionConfig) -> Self {
         let database = config.database.clone();
 
         Self::with_validator(database, SqlServerConnectionRepository::new(config))

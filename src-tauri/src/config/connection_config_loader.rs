@@ -1,3 +1,5 @@
+use std::env::VarError;
+
 use sql_intelliscan_repository::{RepositoryError, SqlServerConnectionConfig};
 use sql_intelliscan_services::errors::{ServiceError, ServiceResult};
 
@@ -12,17 +14,35 @@ const DEVELOPMENT_CONNECTION_STRING: &str = "Server=localhost,1433;Database=mast
 /// configuration so the application can compose services without production
 /// credentials. Callers must not log the returned raw values.
 pub fn load_connection_config() -> ServiceResult<SqlServerConnectionConfig> {
-    let configured_connection_string = std::env::var(CONNECTION_STRING_ENV_VAR).ok();
+    load_connection_config_from_env_value(std::env::var(CONNECTION_STRING_ENV_VAR))
+}
 
-    load_connection_config_from_connection_string(configured_connection_string.as_deref())
+pub fn load_connection_config_from_env_value(
+    configured_connection_string: Result<String, VarError>,
+) -> ServiceResult<SqlServerConnectionConfig> {
+    match configured_connection_string {
+        Ok(connection_string) => {
+            load_connection_config_from_connection_string(Some(&connection_string))
+        }
+        Err(VarError::NotPresent) => load_connection_config_from_connection_string(None),
+        Err(VarError::NotUnicode(_)) => Err(ServiceError::InvalidConfiguration(
+            "SQL Server connection string must be valid Unicode",
+        )),
+    }
 }
 
 pub fn load_connection_config_from_connection_string(
     connection_string: Option<&str>,
 ) -> ServiceResult<SqlServerConnectionConfig> {
-    let connection_string = connection_string
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or(DEVELOPMENT_CONNECTION_STRING);
+    let connection_string = match connection_string {
+        Some(value) if value.trim().is_empty() => {
+            return Err(ServiceError::InvalidConfiguration(
+                "SQL Server connection string must not be empty",
+            ));
+        }
+        Some(value) => value,
+        None => DEVELOPMENT_CONNECTION_STRING,
+    };
 
     SqlServerConnectionConfig::from_connection_string(connection_string)
         .map_err(map_repository_error_to_service)
