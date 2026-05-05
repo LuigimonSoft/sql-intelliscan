@@ -20,9 +20,6 @@ pub fn greet_user(name: &str) -> Result<String, ServiceError> {
 }
 
 pub async fn validate_sql_server_connection(
-    connection_string: &str,
 ) -> Result<sql_intelliscan_services::models::ConnectionTestResult, ServiceError> {
-    shared_app_state()?
-        .validate_sql_server_connection(connection_string)
-        .await
+    shared_app_state()?.test_connection().await
 }

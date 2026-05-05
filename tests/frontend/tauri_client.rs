@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use sql_intelliscan_ui::services::tauri_client::{
-    invoke_backend_greet, invoke_validate_sql_server_connection, validate_connection_args,
+    invoke_backend_greet, invoke_test_connection,
 };
 
 #[test]
@@ -14,22 +14,11 @@ fn GivenName_WhenGreetCommandIsInvoked_ThenMockedResponse_ShouldMatchBackendShap
 }
 
 #[test]
-fn GivenConnectionString_WhenValidateCommandIsInvoked_ThenMockedResponse_ShouldMatchBackendShape() {
-    let response = futures::executor::block_on(invoke_validate_sql_server_connection(
-        "Server=localhost;Database=master",
-    ))
-    .expect("native frontend test should use mocked Tauri response");
+fn GivenNoPayload_WhenTestConnectionCommandIsInvoked_ThenMockedResponse_ShouldMatchBackendShape() {
+    let response = futures::executor::block_on(invoke_test_connection())
+        .expect("native frontend test should use mocked Tauri response");
 
     assert_eq!(response.message, "Connection validated successfully");
-    assert!(response.data.is_valid);
-}
-
-#[test]
-fn GivenConnectionString_WhenValidateArgsAreBuilt_ThenCommand_ShouldNestRequestPayload() {
-    let args = validate_connection_args("Server=localhost;Database=master");
-
-    assert_eq!(
-        args.request.connection_string,
-        "Server=localhost;Database=master"
-    );
+    assert!(response.success);
+    assert_eq!(response.database.as_deref(), Some("master"));
 }

@@ -18,10 +18,7 @@ pub trait GreetingServicePort: Send + Sync {
 }
 
 pub trait ConnectionServicePort: Send + Sync {
-    fn validate_sql_server_connection<'a>(
-        &'a self,
-        connection_string: &'a str,
-    ) -> ConnectionValidationFuture<'a>;
+    fn test_connection(&self) -> ConnectionValidationFuture<'_>;
 }
 
 impl GreetingServicePort for AppGreetingService {
@@ -30,12 +27,33 @@ impl GreetingServicePort for AppGreetingService {
     }
 }
 
-impl ConnectionServicePort for AppConnectionService {
-    fn validate_sql_server_connection<'a>(
-        &'a self,
-        connection_string: &'a str,
-    ) -> ConnectionValidationFuture<'a> {
-        Box::pin(self.test_configured_connection(connection_string))
+pub struct ConfiguredConnectionService {
+    service: AppConnectionService,
+    connection_string: Option<String>,
+}
+
+impl ConfiguredConnectionService {
+    pub fn new(service: AppConnectionService, connection_string: Option<String>) -> Self {
+        Self {
+            service,
+            connection_string,
+        }
+    }
+}
+
+impl ConnectionServicePort for ConfiguredConnectionService {
+    fn test_connection(&self) -> ConnectionValidationFuture<'_> {
+        Box::pin(async move {
+            let connection_string = self.connection_string.as_deref().ok_or(
+                sql_intelliscan_services::errors::ServiceError::InvalidConfiguration(
+                    "SQL Server connection string is not configured",
+                ),
+            )?;
+
+            self.service
+                .test_configured_connection(connection_string)
+                .await
+        })
     }
 }
 
@@ -60,13 +78,8 @@ impl AppState {
         self.greeting_service.greet(name)
     }
 
-    pub async fn validate_sql_server_connection(
-        &self,
-        connection_string: &str,
-    ) -> ServiceResult<ConnectionTestResult> {
-        self.connection_service
-            .validate_sql_server_connection(connection_string)
-            .await
+    pub async fn test_connection(&self) -> ServiceResult<ConnectionTestResult> {
+        self.connection_service.test_connection().await
     }
 }
 

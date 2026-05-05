@@ -16,6 +16,7 @@ fn GivenSuccessfulGreetResponse_WhenMapped_ThenMessage_ShouldUseBackendData() {
 #[test]
 fn GivenFailedGreetResponse_WhenMapped_ThenMessage_ShouldExposeBackendError() {
     let message = map_greet_response(Err(CommandErrorResponse {
+        code: "UNEXPECTED_RESPONSE".to_string(),
         message: "The backend returned an unexpected response.".to_string(),
     }));
 

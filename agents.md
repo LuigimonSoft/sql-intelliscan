@@ -4,6 +4,7 @@
 - Always read this file before modifying code or tests.
 - After any code or test change, re-run all tests and verify coverage.
 - Coverage must never decrease. Prefer increasing it, especially in modified areas.
+- The primary runtime verification is to execute `cargo tauri dev` and confirm the application starts successfully and keeps running without stopping or crashing.
 
 ---
 

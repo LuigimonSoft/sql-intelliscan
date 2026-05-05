@@ -13,14 +13,15 @@ fn GivenNoDatabaseCredentials_WhenAppStateIsBuilt_ThenServices_ShouldBeResolved(
 }
 
 #[test]
-fn GivenInvalidUserProvidedConnectionString_WhenConnectionIsValidated_ThenError_ShouldBeSafe() {
+fn GivenNoConfiguredConnectionString_WhenConnectionIsValidated_ThenError_ShouldBeSafe() {
     let app_state = build_app_state().expect("app state should build without database credentials");
 
-    let result = tauri::async_runtime::block_on(
-        app_state.validate_sql_server_connection("Server=localhost;Database=master"),
-    );
+    let result = tauri::async_runtime::block_on(app_state.test_connection());
 
     let error = result.expect_err("invalid configured connection should fail safely");
 
-    assert_eq!(error, ServiceError::InvalidConfiguration("missing username"));
+    assert_eq!(
+        error,
+        ServiceError::InvalidConfiguration("SQL Server connection string is not configured")
+    );
 }
