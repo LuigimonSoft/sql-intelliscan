@@ -7,16 +7,17 @@ use sql_intelliscan_lib::{
 };
 
 #[test]
-fn GivenNoConfiguredConnectionString_WhenConfigIsLoaded_ThenDevelopmentConfig_ShouldBeValid() {
-    let config = load_connection_config_from_connection_string(None)
-        .expect("development config should be valid");
+fn GivenNoConfiguredConnectionString_WhenConfigIsLoaded_ThenError_ShouldFailFast() {
+    let result = load_connection_config_from_connection_string(None);
 
-    assert_eq!(config.host, "localhost");
-    assert_eq!(config.port, 1433);
-    assert_eq!(config.database, "master");
-    assert_eq!(config.username, "sa");
-    assert_eq!(config.password, "development-password");
-    assert_eq!(config.connection_timeout_seconds, 1);
+    let error = result.expect_err("missing configured value should be rejected");
+
+    assert_eq!(
+        error,
+        sql_intelliscan_lib::ServiceError::InvalidConfiguration(
+            "SQL Server connection string is not configured"
+        )
+    );
 }
 
 #[test]
@@ -59,6 +60,20 @@ fn GivenEmptyConnectionString_WhenConfigIsLoaded_ThenError_ShouldFailFast() {
         error,
         sql_intelliscan_lib::ServiceError::InvalidConfiguration(
             "SQL Server connection string must not be empty"
+        )
+    );
+}
+
+#[test]
+fn GivenMissingEnvironmentValue_WhenConfigIsLoaded_ThenError_ShouldFailFast() {
+    let result = load_connection_config_from_env_value(Err(VarError::NotPresent));
+
+    let error = result.expect_err("missing environment value should be rejected");
+
+    assert_eq!(
+        error,
+        sql_intelliscan_lib::ServiceError::InvalidConfiguration(
+            "SQL Server connection string is not configured"
         )
     );
 }

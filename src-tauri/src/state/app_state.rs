@@ -24,10 +24,6 @@ pub trait ConnectionServicePort: Send + Sync {
     ) -> ConnectionValidationFuture<'a>;
 }
 
-pub trait StartupConnectionServicePort: Send + Sync {
-    fn validate_startup_sql_server_connection(&self) -> ConnectionValidationFuture<'_>;
-}
-
 impl GreetingServicePort for AppGreetingService {
     fn greet(&self, name: &str) -> String {
         GreetingService::greet(self, name)
@@ -43,34 +39,10 @@ impl ConnectionServicePort for AppConnectionService {
     }
 }
 
-impl<R> StartupConnectionServicePort for ConnectionService<R>
-where
-    R: sql_intelliscan_services::contracts::ConnectionRepository + Send + Sync,
-{
-    fn validate_startup_sql_server_connection(&self) -> ConnectionValidationFuture<'_> {
-        Box::pin(self.test_connection())
-    }
-}
-
-struct DisabledStartupConnectionService;
-
-impl StartupConnectionServicePort for DisabledStartupConnectionService {
-    fn validate_startup_sql_server_connection(&self) -> ConnectionValidationFuture<'_> {
-        Box::pin(async {
-            Err(
-                sql_intelliscan_services::errors::ServiceError::InvalidConfiguration(
-                    "startup connection service is not configured",
-                ),
-            )
-        })
-    }
-}
-
 #[derive(Clone)]
 pub struct AppState {
     greeting_service: Arc<dyn GreetingServicePort>,
     connection_service: Arc<dyn ConnectionServicePort>,
-    startup_connection_service: Arc<dyn StartupConnectionServicePort>,
 }
 
 impl AppState {
@@ -81,19 +53,6 @@ impl AppState {
         Self {
             greeting_service,
             connection_service,
-            startup_connection_service: Arc::new(DisabledStartupConnectionService),
-        }
-    }
-
-    pub fn with_startup_connection_service(
-        greeting_service: Arc<dyn GreetingServicePort>,
-        connection_service: Arc<dyn ConnectionServicePort>,
-        startup_connection_service: Arc<dyn StartupConnectionServicePort>,
-    ) -> Self {
-        Self {
-            greeting_service,
-            connection_service,
-            startup_connection_service,
         }
     }
 
@@ -107,14 +66,6 @@ impl AppState {
     ) -> ServiceResult<ConnectionTestResult> {
         self.connection_service
             .validate_sql_server_connection(connection_string)
-            .await
-    }
-
-    pub async fn validate_startup_sql_server_connection(
-        &self,
-    ) -> ServiceResult<ConnectionTestResult> {
-        self.startup_connection_service
-            .validate_startup_sql_server_connection()
             .await
     }
 }

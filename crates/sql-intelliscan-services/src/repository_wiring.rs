@@ -1,7 +1,7 @@
 //! Application service wiring for concrete repository implementations.
 //!
-//! This module keeps the command-time connection-string adapter behind service
-//! contracts. Startup dependency composition lives in `src-tauri`.
+//! This module keeps the user-provided connection-string adapter behind service
+//! contracts. Tauri dependency composition lives in `src-tauri`.
 
 use std::{future::Future, pin::Pin, time::Instant};
 

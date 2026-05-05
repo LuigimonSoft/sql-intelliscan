@@ -5,7 +5,6 @@ mod configuration;
 mod dependency_wiring;
 mod state;
 
-pub use bootstrap::wiring::build_app_state_with_connection_config;
 pub use commands::{
     greet_command, greet_with_state, register_handlers, validate_sql_server_connection_command,
     validate_sql_server_connection_with_state, CommandErrorResponse, CommandSuccessResponse,
@@ -23,9 +22,7 @@ pub use dependency_wiring::{
 pub use sql_intelliscan_services::errors::ServiceError;
 pub use sql_intelliscan_services::models;
 use state::{backend_runner, run_hooks, BackendRunner, BuilderFactory, Runner};
-pub use state::{
-    AppState, ConnectionServicePort, GreetingServicePort, StartupConnectionServicePort,
-};
+pub use state::{AppState, ConnectionServicePort, GreetingServicePort};
 
 const DEFAULT_BUILDER_FACTORY: BuilderFactory = build_app;
 const DEFAULT_RUNNER: Runner = run_builder;
