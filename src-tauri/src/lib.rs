@@ -1,4 +1,6 @@
+mod bootstrap;
 mod commands;
+mod config;
 mod configuration;
 mod dependency_wiring;
 mod state;
@@ -7,6 +9,10 @@ pub use commands::{
     greet_command, greet_with_state, register_handlers, validate_sql_server_connection_command,
     validate_sql_server_connection_with_state, CommandErrorResponse, CommandSuccessResponse,
     ValidateConnectionRequest,
+};
+pub use config::connection_config_loader::{
+    load_connection_config, load_connection_config_from_connection_string,
+    load_connection_config_from_env_value, CONNECTION_STRING_ENV_VAR,
 };
 use configuration::run_builder;
 pub use configuration::{build_app, try_build_app};

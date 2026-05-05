@@ -1,25 +1,14 @@
-use std::sync::{Arc, OnceLock};
+use std::sync::OnceLock;
 
-use sql_intelliscan_services::{
-    errors::ServiceError,
-    repository_wiring::{BackendMetadataRepositoryAdapter, SqlServerConnectionRepositoryFactory},
-    ConnectionService, GreetingService,
-};
+use sql_intelliscan_services::errors::ServiceError;
 
-use crate::state::{AppState, AppStateResult};
+use crate::bootstrap::wiring;
+use crate::state::AppStateResult;
 
 static SHARED_APP_STATE: OnceLock<AppStateResult> = OnceLock::new();
 
 pub fn build_app_state() -> AppStateResult {
-    let backend_metadata_repository = BackendMetadataRepositoryAdapter::default_static();
-    let sql_server_connection_repository_factory = SqlServerConnectionRepositoryFactory;
-
-    let greeting_service = Arc::new(GreetingService::new(backend_metadata_repository));
-    let connection_service = Arc::new(ConnectionService::new(
-        sql_server_connection_repository_factory,
-    ));
-
-    Ok(AppState::new(greeting_service, connection_service))
+    wiring::build_app_state()
 }
 
 pub fn shared_app_state() -> AppStateResult {

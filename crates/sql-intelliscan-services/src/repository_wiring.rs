@@ -1,9 +1,7 @@
 //! Application service wiring for concrete repository implementations.
 //!
-//! `src-tauri` must not depend on `sql-intelliscan-repository` directly, so
-//! this module is the backend composition boundary that adapts concrete
-//! repositories into service contracts. The crate root intentionally does not
-//! re-export these concrete SQL Server types.
+//! This module keeps the user-provided connection-string adapter behind service
+//! contracts. Tauri dependency composition lives in `src-tauri`.
 
 use std::{future::Future, pin::Pin, time::Instant};
 
@@ -71,6 +69,10 @@ pub struct SqlServerConnectionRepositoryAdapter {
 
 impl SqlServerConnectionRepositoryAdapter {
     fn new(config: SqlServerConnectionConfig) -> Self {
+        Self::from_config(config)
+    }
+
+    pub fn from_config(config: SqlServerConnectionConfig) -> Self {
         let database = config.database.clone();
 
         Self::with_validator(database, SqlServerConnectionRepository::new(config))
