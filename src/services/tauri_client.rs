@@ -31,11 +31,19 @@ pub struct BackendConnectionTestResult {
     pub latency_ms: Option<u64>,
 }
 
+#[derive(Serialize)]
+pub struct ConnectionTestArgs<'a, T>
+where
+    T: Serialize,
+{
+    pub request: &'a T,
+}
+
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
-    async fn invoke(cmd: &str, args: JsValue) -> JsValue;
+    #[wasm_bindgen(catch, js_namespace = ["window", "__TAURI__", "core"])]
+    async fn invoke(cmd: &str, args: JsValue) -> Result<JsValue, JsValue>;
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -68,7 +76,7 @@ where
         message: "The frontend could not prepare backend command arguments.".to_string(),
     })?;
 
-    let response = invoke(command, args).await;
+    let response = invoke(command, args).await.map_err(map_invoke_error)?;
 
     serde_wasm_bindgen::from_value(response).map_err(|_| CommandErrorResponse {
         code: "UNEXPECTED_RESPONSE".to_string(),
@@ -88,7 +96,12 @@ pub async fn invoke_backend_greet(
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn invoke_test_connection() -> Result<BackendConnectionTestResult, CommandErrorResponse> {
+pub async fn invoke_test_connection<T>(
+    request: &T,
+) -> Result<BackendConnectionTestResult, CommandErrorResponse>
+where
+    T: Serialize,
+{
     if !has_tauri_invoke() {
         return Err(CommandErrorResponse {
             code: "BACKEND_UNAVAILABLE".to_string(),
@@ -96,7 +109,16 @@ pub async fn invoke_test_connection() -> Result<BackendConnectionTestResult, Com
         });
     }
 
-    let response = invoke("test_connection", js_sys::Object::new().into()).await;
+    let args = serde_wasm_bindgen::to_value(&ConnectionTestArgs { request }).map_err(|_| {
+        CommandErrorResponse {
+            code: "INVALID_ARGUMENTS".to_string(),
+            message: "The frontend could not prepare backend command arguments.".to_string(),
+        }
+    })?;
+
+    let response = invoke("test_connection", args)
+        .await
+        .map_err(map_invoke_error)?;
 
     serde_wasm_bindgen::from_value(response).map_err(|_| CommandErrorResponse {
         code: "UNEXPECTED_RESPONSE".to_string(),
@@ -114,7 +136,14 @@ pub async fn invoke_backend_greet(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn invoke_test_connection() -> Result<BackendConnectionTestResult, CommandErrorResponse> {
+pub async fn invoke_test_connection<T>(
+    request: &T,
+) -> Result<BackendConnectionTestResult, CommandErrorResponse>
+where
+    T: Serialize,
+{
+    let _args = ConnectionTestArgs { request };
+
     Ok(BackendConnectionTestResult {
         success: true,
         message: "Connection successful".to_string(),
@@ -129,4 +158,12 @@ fn mock_greet_response(name: &str) -> CommandSuccessResponse<String> {
         message: "Greeting generated successfully".to_string(),
         data: format!("Hello, {}! You've been greeted from Rust!", name),
     }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn map_invoke_error(error: JsValue) -> CommandErrorResponse {
+    serde_wasm_bindgen::from_value(error).unwrap_or_else(|_| CommandErrorResponse {
+        code: "BACKEND_ERROR".to_string(),
+        message: "The backend command failed.".to_string(),
+    })
 }
