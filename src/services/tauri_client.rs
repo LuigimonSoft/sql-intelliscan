@@ -117,7 +117,7 @@ pub async fn invoke_backend_greet(
 pub async fn invoke_test_connection() -> Result<BackendConnectionTestResult, CommandErrorResponse> {
     Ok(BackendConnectionTestResult {
         success: true,
-        message: "Connection validated successfully".to_string(),
+        message: "Connection successful".to_string(),
         server_version: None,
         database: Some("master".to_string()),
         latency_ms: Some(1),

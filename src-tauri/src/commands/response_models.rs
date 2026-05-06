@@ -21,11 +21,18 @@ pub struct CommandErrorResponse {
 impl CommandErrorResponse {
     pub fn from_service_error(error: ServiceError) -> Self {
         let (code, message) = match error {
+            ServiceError::InvalidConfiguration("authentication failed") => (
+                "AUTHENTICATION_FAILED",
+                "Authentication failed for the SQL Server connection.",
+            ),
             ServiceError::InvalidAuditRequest(_) | ServiceError::InvalidConfiguration(_) => (
                 "INVALID_CONFIGURATION",
                 "The SQL Server connection configuration is invalid.",
             ),
             ServiceError::InvalidName => ("INVALID_CONFIGURATION", "The provided name is invalid."),
+            ServiceError::ConnectionTimeout => {
+                ("TIMEOUT", "The SQL Server connection attempt timed out.")
+            }
             ServiceError::QueryExecutionFailed => (
                 "CONNECTION_FAILED",
                 "Unable to connect to the SQL Server instance.",

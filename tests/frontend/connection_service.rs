@@ -9,14 +9,18 @@ use sql_intelliscan_ui::services::tauri_client::{BackendConnectionTestResult, Co
 fn GivenBackendConnectionResult_WhenMapped_ThenFrontendModel_ShouldExposeFriendlyStatus() {
     let status = map_connection_test_result(BackendConnectionTestResult {
         success: true,
-        message: "Connection validated successfully".to_string(),
-        server_version: None,
+        message: "Connection successful".to_string(),
+        server_version: Some("Microsoft SQL Server 2022".to_string()),
         database: Some("master".to_string()),
         latency_ms: Some(42),
     });
 
     assert!(status.success);
-    assert_eq!(status.message, "Connection validated successfully");
+    assert_eq!(status.message, "Connection successful");
+    assert_eq!(
+        status.server_version.as_deref(),
+        Some("Microsoft SQL Server 2022")
+    );
     assert_eq!(status.database.as_deref(), Some("master"));
     assert_eq!(status.latency_ms, Some(42));
 }
@@ -47,5 +51,5 @@ fn GivenNoConnectionPayload_WhenConnectionIsTested_ThenService_ShouldUseTauriCli
         .expect("native frontend test uses a mocked Tauri client");
 
     assert!(status.success);
-    assert_eq!(status.message, "Connection validated successfully");
+    assert_eq!(status.message, "Connection successful");
 }

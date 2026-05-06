@@ -18,7 +18,7 @@ fn GivenNoPayload_WhenTestConnectionCommandIsInvoked_ThenMockedResponse_ShouldMa
     let response = futures::executor::block_on(invoke_test_connection())
         .expect("native frontend test should use mocked Tauri response");
 
-    assert_eq!(response.message, "Connection validated successfully");
+    assert_eq!(response.message, "Connection successful");
     assert!(response.success);
     assert_eq!(response.database.as_deref(), Some("master"));
 }

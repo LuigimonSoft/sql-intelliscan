@@ -6,6 +6,7 @@ use crate::services::tauri_client::{
 pub struct ConnectionTestStatus {
     pub success: bool,
     pub message: String,
+    pub server_version: Option<String>,
     pub database: Option<String>,
     pub latency_ms: Option<u64>,
 }
@@ -27,6 +28,7 @@ pub fn map_connection_test_result(response: BackendConnectionTestResult) -> Conn
     ConnectionTestStatus {
         success: response.success,
         message: response.message,
+        server_version: response.server_version,
         database: response.database,
         latency_ms: response.latency_ms,
     }

@@ -15,7 +15,17 @@ fn GivenServiceErrors_WhenMappedToCommandErrorResponse_ThenCodesAndMessages_Shou
             "INVALID_CONFIGURATION",
             "The SQL Server connection configuration is invalid.",
         ),
+        (
+            ServiceError::InvalidConfiguration("authentication failed"),
+            "AUTHENTICATION_FAILED",
+            "Authentication failed for the SQL Server connection.",
+        ),
         (ServiceError::InvalidName, "INVALID_CONFIGURATION", "The provided name is invalid."),
+        (
+            ServiceError::ConnectionTimeout,
+            "TIMEOUT",
+            "The SQL Server connection attempt timed out.",
+        ),
         (
             ServiceError::QueryExecutionFailed,
             "CONNECTION_FAILED",
