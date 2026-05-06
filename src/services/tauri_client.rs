@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[cfg(target_arch = "wasm32")]
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -31,12 +33,39 @@ pub struct BackendConnectionTestResult {
     pub latency_ms: Option<u64>,
 }
 
+#[derive(Clone, PartialEq, Eq, Serialize)]
+pub struct ConnectionTestRequest {
+    pub host: String,
+    pub port: u16,
+    pub database: String,
+    pub username: String,
+    pub password: String,
+    pub encrypt: bool,
+    pub trust_server_certificate: bool,
+    pub connection_timeout_seconds: u64,
+}
+
+impl fmt::Debug for ConnectionTestRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ConnectionTestRequest")
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("database", &self.database)
+            .field("username", &self.username)
+            .field("password", &"***")
+            .field("encrypt", &self.encrypt)
+            .field("trust_server_certificate", &self.trust_server_certificate)
+            .field(
+                "connection_timeout_seconds",
+                &self.connection_timeout_seconds,
+            )
+            .finish()
+    }
+}
+
 #[derive(Serialize)]
-pub struct ConnectionTestArgs<'a, T>
-where
-    T: Serialize,
-{
-    pub request: &'a T,
+pub struct ConnectionTestArgs<'a> {
+    pub request: &'a ConnectionTestRequest,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -96,12 +125,9 @@ pub async fn invoke_backend_greet(
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn invoke_test_connection<T>(
-    request: &T,
-) -> Result<BackendConnectionTestResult, CommandErrorResponse>
-where
-    T: Serialize,
-{
+pub async fn invoke_test_connection(
+    request: &ConnectionTestRequest,
+) -> Result<BackendConnectionTestResult, CommandErrorResponse> {
     if !has_tauri_invoke() {
         return Err(CommandErrorResponse {
             code: "BACKEND_UNAVAILABLE".to_string(),
@@ -136,12 +162,9 @@ pub async fn invoke_backend_greet(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn invoke_test_connection<T>(
-    request: &T,
-) -> Result<BackendConnectionTestResult, CommandErrorResponse>
-where
-    T: Serialize,
-{
+pub async fn invoke_test_connection(
+    request: &ConnectionTestRequest,
+) -> Result<BackendConnectionTestResult, CommandErrorResponse> {
     let _args = ConnectionTestArgs { request };
 
     Ok(BackendConnectionTestResult {

@@ -1,40 +1,8 @@
-use std::fmt;
-
-use serde::Serialize;
-
 use crate::services::tauri_client::{
     invoke_test_connection, BackendConnectionTestResult, CommandErrorResponse,
 };
 
-#[derive(Clone, PartialEq, Eq, Serialize)]
-pub struct ConnectionTestRequest {
-    pub host: String,
-    pub port: u16,
-    pub database: String,
-    pub username: String,
-    pub password: String,
-    pub encrypt: bool,
-    pub trust_server_certificate: bool,
-    pub connection_timeout_seconds: u64,
-}
-
-impl fmt::Debug for ConnectionTestRequest {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ConnectionTestRequest")
-            .field("host", &self.host)
-            .field("port", &self.port)
-            .field("database", &self.database)
-            .field("username", &self.username)
-            .field("password", &"***")
-            .field("encrypt", &self.encrypt)
-            .field("trust_server_certificate", &self.trust_server_certificate)
-            .field(
-                "connection_timeout_seconds",
-                &self.connection_timeout_seconds,
-            )
-            .finish()
-    }
-}
+pub use crate::services::tauri_client::ConnectionTestRequest;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConnectionTestResult {
