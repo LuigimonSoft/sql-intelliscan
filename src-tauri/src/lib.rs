@@ -5,10 +5,11 @@ mod configuration;
 mod dependency_wiring;
 mod state;
 
+pub use bootstrap::wiring::configured_connection_string_from_env_value;
 pub use commands::{
-    greet_command, greet_with_state, register_handlers, validate_sql_server_connection_command,
-    validate_sql_server_connection_with_state, CommandErrorResponse, CommandSuccessResponse,
-    ValidateConnectionRequest,
+    greet_command, greet_with_state, register_handlers, test_connection,
+    test_connection_with_state, CommandErrorResponse, CommandSuccessResponse,
+    ConnectionTestResponse,
 };
 pub use config::connection_config_loader::{
     load_connection_config, load_connection_config_from_connection_string,

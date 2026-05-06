@@ -3,37 +3,50 @@
 use sql_intelliscan_lib::{CommandErrorResponse, CommandSuccessResponse, ServiceError};
 
 #[test]
-fn GivenServiceErrors_WhenMappedToCommandErrorResponse_ThenMessages_ShouldBeUserFriendly() {
+fn GivenServiceErrors_WhenMappedToCommandErrorResponse_ThenCodesAndMessages_ShouldBeFrontendSafe() {
     let cases = [
         (
             ServiceError::InvalidAuditRequest("missing target"),
-            "The submitted audit request is invalid: missing target.",
+            "INVALID_CONFIGURATION",
+            "The SQL Server connection configuration is invalid.",
         ),
         (
             ServiceError::InvalidConfiguration("missing password"),
-            "The provided configuration is invalid: missing password.",
+            "INVALID_CONFIGURATION",
+            "The SQL Server connection configuration is invalid.",
         ),
         (
-            ServiceError::InvalidName,
-            "The provided name is invalid.",
+            ServiceError::InvalidConfiguration("authentication failed"),
+            "AUTHENTICATION_FAILED",
+            "Authentication failed for the SQL Server connection.",
+        ),
+        (ServiceError::InvalidName, "INVALID_CONFIGURATION", "The provided name is invalid."),
+        (
+            ServiceError::ConnectionTimeout,
+            "TIMEOUT",
+            "The SQL Server connection attempt timed out.",
         ),
         (
             ServiceError::QueryExecutionFailed,
-            "The operation failed while querying the data source.",
+            "CONNECTION_FAILED",
+            "Unable to connect to the SQL Server instance.",
         ),
         (
             ServiceError::ResultMappingFailed("unexpected scalar"),
-            "The operation could not map the returned data: unexpected scalar.",
+            "UNEXPECTED_ERROR",
+            "An unexpected error occurred while testing the connection.",
         ),
         (
             ServiceError::SourceUnavailable,
-            "The data source is currently unavailable.",
+            "CONNECTION_FAILED",
+            "Unable to connect to the SQL Server instance.",
         ),
     ];
 
-    for (error, expected_message) in cases {
+    for (error, expected_code, expected_message) in cases {
         let response = CommandErrorResponse::from_service_error(error);
 
+        assert_eq!(response.code, expected_code);
         assert_eq!(response.message, expected_message);
     }
 }

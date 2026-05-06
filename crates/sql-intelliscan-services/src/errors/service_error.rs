@@ -15,6 +15,7 @@ pub enum ServiceError {
     InvalidAuditRequest(&'static str),
     InvalidConfiguration(&'static str),
     InvalidName,
+    ConnectionTimeout,
     QueryExecutionFailed,
     ResultMappingFailed(&'static str),
     SourceUnavailable,
@@ -27,8 +28,17 @@ impl From<DataAccessError> for ServiceError {
         match error {
             DataAccessError::SourceUnavailable => Self::SourceUnavailable,
             DataAccessError::InvalidConfiguration(reason) => Self::InvalidConfiguration(reason),
+            DataAccessError::QueryExecutionFailed(reason) if is_timeout_reason(&reason) => {
+                Self::ConnectionTimeout
+            }
             DataAccessError::QueryExecutionFailed(_) => Self::QueryExecutionFailed,
             DataAccessError::ResultMappingFailed(reason) => Self::ResultMappingFailed(reason),
         }
     }
+}
+
+fn is_timeout_reason(reason: &str) -> bool {
+    let normalized = reason.to_ascii_lowercase();
+
+    normalized.contains("timeout") || normalized.contains("timed out")
 }

@@ -7,9 +7,6 @@ pub const CONNECTION_STRING_ENV_VAR: &str = "SQL_INTELLISCAN_SQLSERVER_CONNECTIO
 
 /// Loads SQL Server configuration from
 /// `SQL_INTELLISCAN_SQLSERVER_CONNECTION_STRING`.
-///
-/// The Tauri application does not call this during startup. Database access is
-/// validated only after the UI submits a user-provided connection string.
 pub fn load_connection_config() -> ServiceResult<SqlServerConnectionConfig> {
     load_connection_config_from_env_value(std::env::var(CONNECTION_STRING_ENV_VAR))
 }

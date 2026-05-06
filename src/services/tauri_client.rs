@@ -18,28 +18,17 @@ pub struct CommandSuccessResponse<T> {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct CommandErrorResponse {
+    pub code: String,
     pub message: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct BackendConnectionTestResult {
-    pub is_valid: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct ValidateConnectionRequestArgs<'a> {
-    pub connection_string: &'a str,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct ValidateConnectionArgs<'a> {
-    pub request: ValidateConnectionRequestArgs<'a>,
-}
-
-pub fn validate_connection_args(connection_string: &str) -> ValidateConnectionArgs<'_> {
-    ValidateConnectionArgs {
-        request: ValidateConnectionRequestArgs { connection_string },
-    }
+    pub success: bool,
+    pub message: String,
+    pub server_version: Option<String>,
+    pub database: Option<String>,
+    pub latency_ms: Option<u64>,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -69,17 +58,20 @@ where
 {
     if !has_tauri_invoke() {
         return Err(CommandErrorResponse {
+            code: "BACKEND_UNAVAILABLE".to_string(),
             message: "Tauri backend is not available.".to_string(),
         });
     }
 
     let args = serde_wasm_bindgen::to_value(args).map_err(|_| CommandErrorResponse {
+        code: "INVALID_ARGUMENTS".to_string(),
         message: "The frontend could not prepare backend command arguments.".to_string(),
     })?;
 
     let response = invoke(command, args).await;
 
     serde_wasm_bindgen::from_value(response).map_err(|_| CommandErrorResponse {
+        code: "UNEXPECTED_RESPONSE".to_string(),
         message: "The backend returned an unexpected response.".to_string(),
     })
 }
@@ -96,14 +88,20 @@ pub async fn invoke_backend_greet(
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn invoke_validate_sql_server_connection(
-    connection_string: &str,
-) -> Result<CommandSuccessResponse<BackendConnectionTestResult>, CommandErrorResponse> {
-    invoke_command(
-        "validate_sql_server_connection_command",
-        &validate_connection_args(connection_string),
-    )
-    .await
+pub async fn invoke_test_connection() -> Result<BackendConnectionTestResult, CommandErrorResponse> {
+    if !has_tauri_invoke() {
+        return Err(CommandErrorResponse {
+            code: "BACKEND_UNAVAILABLE".to_string(),
+            message: "Tauri backend is not available.".to_string(),
+        });
+    }
+
+    let response = invoke("test_connection", js_sys::Object::new().into()).await;
+
+    serde_wasm_bindgen::from_value(response).map_err(|_| CommandErrorResponse {
+        code: "UNEXPECTED_RESPONSE".to_string(),
+        message: "The backend returned an unexpected response.".to_string(),
+    })
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -116,14 +114,13 @@ pub async fn invoke_backend_greet(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn invoke_validate_sql_server_connection(
-    connection_string: &str,
-) -> Result<CommandSuccessResponse<BackendConnectionTestResult>, CommandErrorResponse> {
-    let _args = validate_connection_args(connection_string);
-
-    Ok(CommandSuccessResponse {
-        message: "Connection validated successfully".to_string(),
-        data: BackendConnectionTestResult { is_valid: true },
+pub async fn invoke_test_connection() -> Result<BackendConnectionTestResult, CommandErrorResponse> {
+    Ok(BackendConnectionTestResult {
+        success: true,
+        message: "Connection successful".to_string(),
+        server_version: None,
+        database: Some("master".to_string()),
+        latency_ms: Some(1),
     })
 }
 

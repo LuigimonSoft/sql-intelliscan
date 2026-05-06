@@ -17,9 +17,8 @@ impl GreetingServicePort for MockGreetingService {
 struct MockConnectionService;
 
 impl ConnectionServicePort for MockConnectionService {
-    fn validate_sql_server_connection<'a>(
-        &'a self,
-        _connection_string: &'a str,
+    fn test_connection(
+        &self,
     ) -> Pin<
         Box<
             dyn Future<
@@ -28,7 +27,7 @@ impl ConnectionServicePort for MockConnectionService {
                         ServiceError,
                     >,
                 > + Send
-                + 'a,
+                + '_,
         >,
     > {
         Box::pin(async { Ok(sql_intelliscan_lib::models::ConnectionTestResult::valid()) })
@@ -49,25 +48,21 @@ fn GivenDependencyWiring_WhenAppStateIsBuilt_ThenServices_ShouldBeResolved() {
 fn GivenInvalidConnectionString_WhenAppStateValidatesConnection_ThenError_ShouldBeClear() {
     let app_state = build_app_state().expect("app state should build");
 
-    let result = tauri::async_runtime::block_on(
-        app_state.validate_sql_server_connection("Server=localhost;Database=master"),
-    );
+    let result = tauri::async_runtime::block_on(app_state.test_connection());
 
     let error = result.expect_err("expected invalid configuration error");
-    assert_eq!(error, ServiceError::InvalidConfiguration("missing username"));
+    assert_eq!(
+        error,
+        ServiceError::InvalidConfiguration("SQL Server connection string is not configured")
+    );
 }
 
 #[test]
-fn GivenConfiguredConnectionString_WhenStateValidatesConnection_ThenResult_ShouldIncludeSafeDetails()
-{
+fn GivenConfiguredConnectionService_WhenStateTestsConnection_ThenResult_ShouldIncludeSafeDetails() {
     let app_state = AppState::new(Arc::new(MockGreetingService), Arc::new(MockConnectionService));
 
-    let result = tauri::async_runtime::block_on(
-        app_state.validate_sql_server_connection(
-            "Server=localhost;Database=master;User Id=sa;Password=secret",
-        ),
-    )
-    .expect("configured validation should succeed");
+    let result = tauri::async_runtime::block_on(app_state.test_connection())
+        .expect("configured validation should succeed");
 
     assert!(result.is_valid);
 }

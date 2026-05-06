@@ -113,12 +113,23 @@ fn GivenConnectionRepositoryFailure_WhenValidationIsRequested_ThenService_Should
 #[test]
 fn GivenRepositoryQueryFailure_WhenValidationIsRequested_ThenService_ShouldNormalizeError() {
     let service = ConnectionService::new(MockConnectionRepository::fails_with(
-        DataAccessError::QueryExecutionFailed("timeout".to_owned()),
+        DataAccessError::QueryExecutionFailed("validation query failed".to_owned()),
     ));
 
     let result = futures::executor::block_on(service.test_connection());
 
     assert_eq!(result, Err(ServiceError::QueryExecutionFailed));
+}
+
+#[test]
+fn GivenRepositoryTimeout_WhenValidationIsRequested_ThenService_ShouldNormalizeError() {
+    let service = ConnectionService::new(MockConnectionRepository::fails_with(
+        DataAccessError::QueryExecutionFailed("connection timeout".to_owned()),
+    ));
+
+    let result = futures::executor::block_on(service.test_connection());
+
+    assert_eq!(result, Err(ServiceError::ConnectionTimeout));
 }
 
 #[test]

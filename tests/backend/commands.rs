@@ -3,10 +3,9 @@
 use std::{future::Future, pin::Pin, sync::Arc};
 
 use sql_intelliscan_lib::{
-    build_app_state, greet_command, greet_with_state, register_handlers,
-    validate_sql_server_connection_command, validate_sql_server_connection_with_state, AppState,
-    CommandErrorResponse, ConnectionServicePort, GreetingServicePort, ServiceError,
-    ValidateConnectionRequest,
+    build_app_state, greet_command, greet_with_state, register_handlers, test_connection,
+    test_connection_with_state, AppState, CommandErrorResponse, ConnectionServicePort,
+    ConnectionTestResponse, GreetingServicePort, ServiceError,
 };
 use tauri::Manager;
 
@@ -27,21 +26,17 @@ fn GivenBuilder_WhenHandlersAreRegistered_ThenPipeline_ShouldBeComposable() {
 }
 
 #[test]
-fn GivenInvalidConnectionString_WhenValidateCommandHandlerIsCalled_ThenResult_ShouldReturnFriendlyError(
+fn GivenMissingConfiguration_WhenTestConnectionHandlerIsCalled_ThenResult_ShouldReturnFriendlyError(
 ) {
     let app_state = build_app_state().expect("app state should build");
 
-    let result = tauri::async_runtime::block_on(validate_sql_server_connection_with_state(
-        &app_state,
-        "Server=localhost;Database=master",
-    ));
+    let result = tauri::async_runtime::block_on(test_connection_with_state(&app_state));
 
     let error = result.expect_err("expected invalid configuration error");
-    let mapped_error = CommandErrorResponse::from_service_error(error);
-
+    assert_eq!(error.code, "INVALID_CONFIGURATION");
     assert_eq!(
-        mapped_error.message,
-        "The provided configuration is invalid: missing username."
+        error.message,
+        "The SQL Server connection configuration is invalid."
     );
 }
 
@@ -60,7 +55,7 @@ fn GivenManagedState_WhenGreetCommandIsCalled_ThenResponse_ShouldWrapGreetingMes
 }
 
 #[test]
-fn GivenManagedStateAndInvalidConnectionString_WhenValidateCommandIsCalled_ThenResponse_ShouldReturnFriendlyError(
+fn GivenManagedStateAndMissingConfiguration_WhenTestConnectionIsCalled_ThenResponse_ShouldReturnFriendlyError(
 ) {
     let app_state = build_app_state().expect("app state should build");
     let app = tauri::test::mock_builder()
@@ -68,17 +63,13 @@ fn GivenManagedStateAndInvalidConnectionString_WhenValidateCommandIsCalled_ThenR
         .build(tauri::test::mock_context(tauri::test::noop_assets()))
         .expect("mock app should build");
 
-    let result = tauri::async_runtime::block_on(validate_sql_server_connection_command(
-        app.state(),
-        ValidateConnectionRequest {
-            connection_string: "Server=localhost;Database=master".to_string(),
-        },
-    ));
+    let result = tauri::async_runtime::block_on(test_connection(app.state()));
 
     let error = result.expect_err("expected invalid configuration error");
+    assert_eq!(error.code, "INVALID_CONFIGURATION");
     assert_eq!(
         error.message,
-        "The provided configuration is invalid: missing username."
+        "The SQL Server connection configuration is invalid."
     );
 }
 
@@ -92,29 +83,74 @@ impl GreetingServicePort for MockGreetingService {
 struct MockConnectionService;
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 impl ConnectionServicePort for MockConnectionService {
-    fn validate_sql_server_connection<'a>(
-        &'a self,
-        _connection_string: &'a str,
-    ) -> BoxFuture<'a, Result<sql_intelliscan_lib::models::ConnectionTestResult, ServiceError>> {
+    fn test_connection(
+        &self,
+    ) -> BoxFuture<'_, Result<sql_intelliscan_lib::models::ConnectionTestResult, ServiceError>> {
         Box::pin(async { Err(ServiceError::SourceUnavailable) })
     }
 }
 
 #[test]
-fn GivenMockedServices_WhenValidateCommandRuns_ThenCommand_ShouldDelegateAndMapError() {
+fn GivenMockedServices_WhenTestConnectionCommandRuns_ThenCommand_ShouldDelegateAndMapError() {
     let app_state = AppState::new(Arc::new(MockGreetingService), Arc::new(MockConnectionService));
     let app = tauri::test::mock_builder()
         .manage(app_state)
         .build(tauri::test::mock_context(tauri::test::noop_assets()))
         .expect("mock app should build");
 
-    let result = tauri::async_runtime::block_on(validate_sql_server_connection_command(
-        app.state(),
-        ValidateConnectionRequest {
-            connection_string: "ignored".to_string(),
-        },
-    ));
+    let result = tauri::async_runtime::block_on(test_connection(app.state()));
 
     let error = result.expect_err("expected service error");
-    assert_eq!(error.message, "The data source is currently unavailable.");
+    assert_eq!(error.code, "CONNECTION_FAILED");
+    assert_eq!(
+        error.message,
+        "Unable to connect to the SQL Server instance."
+    );
+}
+
+struct SuccessfulConnectionService;
+impl ConnectionServicePort for SuccessfulConnectionService {
+    fn test_connection(
+        &self,
+    ) -> BoxFuture<'_, Result<sql_intelliscan_lib::models::ConnectionTestResult, ServiceError>> {
+        Box::pin(async {
+            Ok(sql_intelliscan_lib::models::ConnectionTestResult::valid_with_details(
+                Some("master".to_string()),
+                Some(42),
+            ))
+        })
+    }
+}
+
+#[test]
+fn GivenSuccessfulServiceResult_WhenTestConnectionCommandRuns_ThenResponse_ShouldContainOnlySafeFields(
+) {
+    let app_state = AppState::new(
+        Arc::new(MockGreetingService),
+        Arc::new(SuccessfulConnectionService),
+    );
+    let app = tauri::test::mock_builder()
+        .manage(app_state)
+        .build(tauri::test::mock_context(tauri::test::noop_assets()))
+        .expect("mock app should build");
+
+    let response: ConnectionTestResponse = tauri::async_runtime::block_on(test_connection(app.state()))
+        .expect("connection test should succeed");
+
+    assert!(response.success);
+    assert_eq!(response.message, "Connection successful");
+    assert_eq!(response.database.as_deref(), Some("master"));
+    assert_eq!(response.latency_ms, Some(42));
+    assert_eq!(response.server_version, None);
+}
+
+#[test]
+fn GivenServiceError_WhenMappedToCommandError_ThenResponse_ShouldUseStableSafeCode() {
+    let error = CommandErrorResponse::from_service_error(ServiceError::QueryExecutionFailed);
+
+    assert_eq!(error.code, "CONNECTION_FAILED");
+    assert_eq!(
+        error.message,
+        "Unable to connect to the SQL Server instance."
+    );
 }
