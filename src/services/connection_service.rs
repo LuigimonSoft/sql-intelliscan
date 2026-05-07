@@ -1,23 +1,7 @@
-use crate::services::tauri_client::{
-    invoke_test_connection, BackendConnectionTestResult, CommandErrorResponse,
-};
+use crate::models::{BackendConnectionTestResult, ConnectionTestError, ConnectionTestResult};
+use crate::services::tauri_client::{invoke_test_connection, CommandErrorResponse};
 
-pub use crate::services::tauri_client::ConnectionTestRequest;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConnectionTestResult {
-    pub success: bool,
-    pub message: String,
-    pub server_version: Option<String>,
-    pub database: Option<String>,
-    pub latency_ms: Option<u64>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConnectionTestError {
-    pub code: String,
-    pub message: String,
-}
+pub use crate::models::ConnectionTestRequest;
 
 pub async fn test_connection(
     request: ConnectionTestRequest,
@@ -30,13 +14,7 @@ pub async fn test_connection(
 }
 
 pub fn map_connection_test_result(response: BackendConnectionTestResult) -> ConnectionTestResult {
-    ConnectionTestResult {
-        success: response.success,
-        message: response.message,
-        server_version: response.server_version,
-        database: response.database,
-        latency_ms: response.latency_ms,
-    }
+    response.into()
 }
 
 pub fn normalize_backend_error(error: CommandErrorResponse) -> ConnectionTestError {
