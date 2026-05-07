@@ -14,6 +14,7 @@ fn valid_connection_request() -> ConnectionTestRequest {
         encrypt: true,
         trust_server_certificate: true,
         connection_timeout_seconds: 30,
+        application_name: Some("SQL Intelliscan Tests".to_string()),
     }
 }
 
