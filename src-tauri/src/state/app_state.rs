@@ -19,6 +19,10 @@ pub trait GreetingServicePort: Send + Sync {
 
 pub trait ConnectionServicePort: Send + Sync {
     fn test_connection(&self) -> ConnectionValidationFuture<'_>;
+    fn test_connection_with_connection_string<'a>(
+        &'a self,
+        connection_string: &'a str,
+    ) -> ConnectionValidationFuture<'a>;
 }
 
 impl GreetingServicePort for AppGreetingService {
@@ -55,6 +59,17 @@ impl ConnectionServicePort for ConfiguredConnectionService {
                 .await
         })
     }
+
+    fn test_connection_with_connection_string<'a>(
+        &'a self,
+        connection_string: &'a str,
+    ) -> ConnectionValidationFuture<'a> {
+        Box::pin(async move {
+            self.service
+                .test_configured_connection(connection_string)
+                .await
+        })
+    }
 }
 
 #[derive(Clone)]
@@ -80,6 +95,15 @@ impl AppState {
 
     pub async fn test_connection(&self) -> ServiceResult<ConnectionTestResult> {
         self.connection_service.test_connection().await
+    }
+
+    pub async fn test_connection_with_connection_string(
+        &self,
+        connection_string: &str,
+    ) -> ServiceResult<ConnectionTestResult> {
+        self.connection_service
+            .test_connection_with_connection_string(connection_string)
+            .await
     }
 }
 

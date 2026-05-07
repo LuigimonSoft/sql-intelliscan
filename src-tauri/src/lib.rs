@@ -7,9 +7,9 @@ mod state;
 
 pub use bootstrap::wiring::configured_connection_string_from_env_value;
 pub use commands::{
-    greet_command, greet_with_state, register_handlers, test_connection,
-    test_connection_with_state, CommandErrorResponse, CommandSuccessResponse,
-    ConnectionTestResponse,
+    connection_string_from_request, greet_command, greet_with_state, register_handlers,
+    test_connection, test_connection_with_state, CommandErrorResponse, CommandSuccessResponse,
+    ConnectionTestRequest, ConnectionTestResponse,
 };
 pub use config::connection_config_loader::{
     load_connection_config, load_connection_config_from_connection_string,

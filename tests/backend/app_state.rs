@@ -32,6 +32,23 @@ impl ConnectionServicePort for MockConnectionService {
     > {
         Box::pin(async { Ok(sql_intelliscan_lib::models::ConnectionTestResult::valid()) })
     }
+
+    fn test_connection_with_connection_string(
+        &self,
+        _connection_string: &str,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<
+                        sql_intelliscan_lib::models::ConnectionTestResult,
+                        ServiceError,
+                    >,
+                > + Send
+                + '_,
+        >,
+    > {
+        Box::pin(async { Ok(sql_intelliscan_lib::models::ConnectionTestResult::valid()) })
+    }
 }
 
 #[test]

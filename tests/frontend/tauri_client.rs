@@ -1,8 +1,21 @@
 #![allow(non_snake_case)]
 
 use sql_intelliscan_ui::services::tauri_client::{
-    invoke_backend_greet, invoke_test_connection,
+    invoke_backend_greet, invoke_test_connection, ConnectionTestRequest,
 };
+
+fn valid_connection_request() -> ConnectionTestRequest {
+    ConnectionTestRequest {
+        host: "localhost".to_string(),
+        port: 1433,
+        database: "master".to_string(),
+        username: "sa".to_string(),
+        password: "StrongPassword123".to_string(),
+        encrypt: true,
+        trust_server_certificate: true,
+        connection_timeout_seconds: 30,
+    }
+}
 
 #[test]
 fn GivenName_WhenGreetCommandIsInvoked_ThenMockedResponse_ShouldMatchBackendShape() {
@@ -14,8 +27,8 @@ fn GivenName_WhenGreetCommandIsInvoked_ThenMockedResponse_ShouldMatchBackendShap
 }
 
 #[test]
-fn GivenNoPayload_WhenTestConnectionCommandIsInvoked_ThenMockedResponse_ShouldMatchBackendShape() {
-    let response = futures::executor::block_on(invoke_test_connection())
+fn GivenPayload_WhenTestConnectionCommandIsInvoked_ThenMockedResponse_ShouldMatchBackendShape() {
+    let response = futures::executor::block_on(invoke_test_connection(&valid_connection_request()))
         .expect("native frontend test should use mocked Tauri response");
 
     assert_eq!(response.message, "Connection successful");
