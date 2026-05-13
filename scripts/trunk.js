@@ -2,6 +2,7 @@
 
 const { spawn } = require("node:child_process");
 const fs = require("node:fs/promises");
+const http = require("node:http");
 const path = require("node:path");
 const os = require("node:os");
 
@@ -26,7 +27,7 @@ const trunkDist =
   process.env.TRUNK_BUILD_DIST ??
   path.join(os.tmpdir(), "sql_intelliscan-trunk-dist");
 const trunkTarget =
-  process.env.CARGO_TARGET_DIR ??
+  process.env.TRUNK_CARGO_TARGET_DIR ??
   path.join(os.tmpdir(), "sql_intelliscan-trunk-target");
 const stagePath = path.join(trunkDist, ".stage");
 
@@ -40,9 +41,15 @@ async function run() {
   await runTailwindBuild();
 
   if (mode === "serve") {
-    await fs.rm(trunkDist, { recursive: true, force: true });
-    await fs.mkdir(trunkDist, { recursive: true });
-    process.exit(await runTrunk("serve", trunkDist));
+    await resetDistRoots();
+    const exitCode = await runTrunk("build", trunkDist);
+    if (exitCode !== 0) {
+      process.exit(exitCode ?? 1);
+    }
+
+    await finalizeProjectDist();
+    await serveProjectDist();
+    return;
   }
 
   await resetDistRoots();
@@ -74,6 +81,68 @@ async function run() {
   await removeAppleDouble(projectDist);
   await sanitizeHtmlReferences(projectDist);
   await fs.rm(stagePath, { recursive: true, force: true });
+}
+
+function serveProjectDist() {
+  const host = "127.0.0.1";
+  const port = 1420;
+
+  const server = http.createServer(async (request, response) => {
+    const requestUrl = new URL(request.url ?? "/", `http://${host}:${port}`);
+    const pathname = decodeURIComponent(requestUrl.pathname);
+    const safePath = pathname === "/" ? "index.html" : pathname.slice(1);
+    const filePath = path.resolve(projectDist, safePath);
+
+    if (!filePath.startsWith(projectDist)) {
+      response.writeHead(403);
+      response.end("Forbidden");
+      return;
+    }
+
+    try {
+      const stat = await fs.stat(filePath);
+      const resolvedPath = stat.isDirectory()
+        ? path.join(filePath, "index.html")
+        : filePath;
+      const body = await fs.readFile(resolvedPath);
+      response.writeHead(200, { "content-type": contentType(resolvedPath) });
+      response.end(body);
+    } catch {
+      const fallback = await fs.readFile(path.join(projectDist, "index.html"));
+      response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      response.end(fallback);
+    }
+  });
+
+  return new Promise((resolve, reject) => {
+    server.on("error", reject);
+    server.listen(port, host, () => {
+      console.log(`Serving ${projectDist} at http://${host}:${port}/`);
+    });
+
+    const stop = () => {
+      server.close(() => resolve());
+    };
+    process.once("SIGINT", stop);
+    process.once("SIGTERM", stop);
+  });
+}
+
+function contentType(filePath) {
+  switch (path.extname(filePath)) {
+    case ".css":
+      return "text/css; charset=utf-8";
+    case ".html":
+      return "text/html; charset=utf-8";
+    case ".js":
+      return "text/javascript; charset=utf-8";
+    case ".json":
+      return "application/json; charset=utf-8";
+    case ".wasm":
+      return "application/wasm";
+    default:
+      return "application/octet-stream";
+  }
 }
 
 function runTailwindBuild() {

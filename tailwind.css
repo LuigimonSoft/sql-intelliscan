@@ -2,3 +2,265 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: dark;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial,
+    sans-serif;
+  background: #070814;
+  color: #e7e9f6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    linear-gradient(rgba(113, 118, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(113, 118, 255, 0.08) 1px, transparent 1px),
+    radial-gradient(circle at 10% 8%, rgba(0, 171, 198, 0.2), transparent 28%),
+    radial-gradient(circle at 88% 92%, rgba(104, 89, 255, 0.2), transparent 32%),
+    #070814;
+  background-size: 38px 38px, 38px 38px, auto, auto, auto;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.connection-shell {
+  width: min(100%, 440px);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 42px 16px 28px;
+}
+
+.connection-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.connection-brand-mark {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(191, 219, 254, 0.32);
+  border-radius: 16px;
+  background: linear-gradient(145deg, #1d9bd1, #5c5ff6 52%, #292f74);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 14px 42px rgba(0, 0, 0, 0.38);
+}
+
+.connection-brand-disc,
+.connection-brand-lines {
+  position: absolute;
+  left: 50%;
+  width: 32px;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.connection-brand-disc {
+  top: 12px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.connection-brand-lines {
+  top: 21px;
+  height: 25px;
+  border-radius: 0 0 50% 50%;
+  box-shadow:
+    0 8px 0 rgba(255, 255, 255, 0.62),
+    inset 0 9px 0 rgba(17, 197, 210, 0.26);
+}
+
+.connection-hero h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.connection-hero p {
+  margin: 3px 0 0;
+  color: #a6accd;
+  font-size: 0.76rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.connection-card {
+  overflow: hidden;
+  border: 1px solid rgba(122, 133, 255, 0.24);
+  border-radius: 16px;
+  background: rgba(17, 20, 42, 0.86);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 22px 52px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(28px) saturate(150%);
+}
+
+.connection-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px 7px;
+}
+
+.connection-section::after {
+  content: "";
+  height: 1px;
+  flex: 1 1 auto;
+  background: rgba(122, 133, 255, 0.18);
+}
+
+.connection-section-label {
+  color: #8cd9e8;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.connection-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 0.48fr);
+}
+
+.connection-field {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: center;
+  min-height: 46px;
+  padding: 0 16px;
+  border-top: 1px solid rgba(122, 133, 255, 0.13);
+  column-gap: 10px;
+  transition: background 0.16s ease;
+}
+
+.connection-grid .connection-field + .connection-field {
+  border-left: 1px solid rgba(122, 133, 255, 0.13);
+}
+
+.connection-field:focus-within {
+  background: rgba(122, 133, 255, 0.11);
+}
+
+.connection-field > span {
+  color: #8b92b8;
+  font-size: 0.77rem;
+  white-space: nowrap;
+}
+
+.connection-field input[type="text"],
+.connection-field input[type="number"],
+.connection-field input[type="password"] {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #f3f5ff;
+  font-size: 0.83rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.connection-field input::placeholder {
+  color: #5f668b;
+}
+
+.connection-error {
+  grid-column: 2;
+  padding: 0 0 8px;
+  color: #ffb4a8;
+  font-size: 0.73rem;
+  line-height: 1.25;
+}
+
+.connection-switches {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid rgba(122, 133, 255, 0.13);
+}
+
+.connection-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 0 16px;
+  color: #c5cae2;
+  font-size: 0.83rem;
+}
+
+.connection-switch + .connection-switch {
+  border-top: 1px solid rgba(122, 133, 255, 0.13);
+}
+
+.connection-switch input {
+  width: 18px;
+  height: 18px;
+  accent-color: #10c6d8;
+}
+
+.connection-submit {
+  width: calc(100% - 32px);
+  min-height: 44px;
+  margin: 16px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0aa6c4, #5865f2 58%, #8b5cf6);
+  color: white;
+  font-size: 0.91rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 12px 32px rgba(49, 122, 255, 0.34);
+}
+
+.connection-submit:hover {
+  filter: brightness(1.08);
+}
+
+.connection-submit:active {
+  transform: translateY(1px);
+}
+
+.connection-status {
+  min-height: 20px;
+  margin: 12px 4px 0;
+  color: #a6accd;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+@media (max-width: 520px) {
+  .connection-shell {
+    padding-top: 26px;
+  }
+
+  .connection-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .connection-grid .connection-field + .connection-field {
+    border-left: 0;
+  }
+
+  .connection-field {
+    grid-template-columns: 88px minmax(0, 1fr);
+    padding-inline: 14px;
+  }
+}

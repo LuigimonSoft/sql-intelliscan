@@ -21,31 +21,10 @@ use wasm_bindgen_futures::JsFuture;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::wasm_bindgen_test;
 #[cfg(target_arch = "wasm32")]
-use web_sys::{Event, HtmlButtonElement, HtmlInputElement};
+use web_sys::{Element, Event, HtmlButtonElement, HtmlElement, HtmlInputElement};
 
 #[cfg(target_arch = "wasm32")]
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
-
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen_test]
-fn GivenAppComponent_WhenMounted_ThenH1_ShouldRenderExpectedTitle() {
-    console_error_panic_hook::set_once();
-
-    let window = web_sys::window().expect("window should be available");
-    let document = window.document().expect("document should be available");
-    mount_to_body(|| view! { <App /> });
-
-    let title = document
-        .query_selector("h1")
-        .expect("selector should not fail");
-
-    assert!(title.is_some(), "App should render an <h1> element");
-    assert_eq!(
-        title.unwrap().text_content().unwrap(),
-        "Welcome to SQL Intelliscan",
-        "The <h1> element should contain the correct text"
-    );
-}
 
 #[cfg(target_arch = "wasm32")]
 async fn flush_ui_updates() {
@@ -54,43 +33,102 @@ async fn flush_ui_updates() {
 }
 
 #[cfg(target_arch = "wasm32")]
-#[wasm_bindgen_test(async)]
-async fn GivenGreetForm_WhenSubmittingName_ThenMessage_ShouldRenderRustGreeting() {
+fn test_root() -> Element {
+    let document = web_sys::window()
+        .and_then(|window| window.document())
+        .expect("document should be available");
+    let root = document
+        .create_element("section")
+        .expect("test root should be created");
+    document
+        .body()
+        .expect("document body should exist")
+        .append_child(&root)
+        .expect("test root should be attached");
+    root
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen_test]
+fn GivenAppComponent_WhenMounted_ThenH1_ShouldRenderExpectedTitle() {
     console_error_panic_hook::set_once();
 
-    let window = web_sys::window().expect("window should be available");
-    let document = window.document().expect("document should be available");
+    let root = test_root();
+    mount_to(
+        root.clone()
+            .dyn_into::<HtmlElement>()
+            .expect("test root should be an html element"),
+        || view! { <App /> },
+    )
+    .forget();
 
-    mount_to_body(|| view! { <App /> });
+    let title = root
+        .query_selector("h1")
+        .expect("selector should not fail");
 
-    let input = document
-        .get_element_by_id("greet-input")
-        .expect("greet input should exist")
+    assert!(title.is_some(), "App should render an <h1> element");
+    assert_eq!(
+        title.unwrap().text_content().unwrap(),
+        "SQL Intelliscan",
+        "The <h1> element should contain the correct text"
+    );
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen_test(async)]
+async fn GivenAppComponent_WhenConnectionFormIsSubmitted_ThenStatus_ShouldRenderSafeRequestSummary()
+{
+    console_error_panic_hook::set_once();
+
+    let root = test_root();
+
+    mount_to(
+        root.clone()
+            .dyn_into::<HtmlElement>()
+            .expect("test root should be an html element"),
+        || view! { <App /> },
+    )
+    .forget();
+
+    let username = root
+        .query_selector("#connection-username")
+        .expect("selector should not fail")
+        .expect("connection username input should exist")
         .dyn_into::<HtmlInputElement>()
-        .expect("greet input should be an input element");
-    input.set_value("prueba");
-    input
+        .expect("connection username should be an input element");
+    let password = root
+        .query_selector("#connection-password")
+        .expect("selector should not fail")
+        .expect("connection password input should exist")
+        .dyn_into::<HtmlInputElement>()
+        .expect("connection password should be an input element");
+    let button = root
+        .query_selector("#connection-submit")
+        .expect("selector should not fail")
+        .expect("connection submit button should exist")
+        .dyn_into::<HtmlButtonElement>()
+        .expect("connection submit should be a button element");
+
+    username.set_value("sa");
+    username
         .dispatch_event(&Event::new("input").expect("input event should be created"))
         .expect("input event should dispatch");
-
-    let button = document
-        .get_element_by_id("greet-button")
-        .expect("greet button should exist")
-        .dyn_into::<HtmlButtonElement>()
-        .expect("greet button should be a button element");
+    password.set_value("StrongPassword123");
+    password
+        .dispatch_event(&Event::new("input").expect("input event should be created"))
+        .expect("input event should dispatch");
     button.click();
-
     flush_ui_updates().await;
 
-    let body_text = document
-        .body()
-        .and_then(|body| body.text_content())
-        .expect("document body should expose text content");
+    let status = root
+        .query_selector("#connection-status")
+        .expect("selector should not fail")
+        .and_then(|element| element.text_content())
+        .expect("status should expose text");
 
-    assert!(
-        body_text.contains("Hello, prueba! You've been greeted from Rust!"),
-        "The greeting message should be rendered after submitting the form"
-    );
+    assert!(status.contains("Ready to test localhost:1433 using database master"));
+    assert!(!status.contains("StrongPassword123"));
+    assert_eq!(password.type_(), "password");
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -122,7 +160,7 @@ fn GivenNativeAppComponent_WhenItIsBuilt_ThenView_ShouldCompile() {
 fn GivenAppComponent_WhenRenderedToHtml_ThenMarkup_ShouldContainTitle() {
     let rendered_html = App().to_html();
 
-    assert!(rendered_html.contains("<h1>Welcome to SQL Intelliscan</h1>"));
+    assert!(rendered_html.contains("<h1 id=\"connection-title\">SQL Intelliscan</h1>"));
 }
 
 #[cfg(not(target_arch = "wasm32"))]
