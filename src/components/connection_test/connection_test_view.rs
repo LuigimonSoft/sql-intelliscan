@@ -110,21 +110,22 @@ pub fn ConnectionTestView() -> impl IntoView {
     });
 
     view! {
-        <div class="bg-dark"></div>
-        <div class="bg-light"></div>
-        <main class="connection-shell">
-            <section class="connection-hero" aria-labelledby="connection-title">
-                <div class="connection-brand-mark" aria-hidden="true">
-                    <span class="connection-brand-disc"></span>
-                    <span class="connection-brand-lines"></span>
-                </div>
-                <div>
-                    <h1 id="connection-title">"SQL Intelliscan"</h1>
-                    <p>"Connect to SQL Server"</p>
-                </div>
+        <div class="bg-dark">
+            <div class="grid-layer"></div>
+            <div class="orb orb-indigo"></div>
+            <div class="orb orb-violet"></div>
+            <div class="orb orb-cyan"></div>
+        </div>
+        <div class="bg-light">
+            <div class="grid-layer"></div>
+            <div class="orb orb-light-indigo"></div>
+            <div class="orb orb-light-violet"></div>
+        </div>
+        <main class="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-10">
+            <div class="theme-wrap">
                 <button
                     id="theme-toggle"
-                    class="theme-toggle"
+                    class="theme-pill"
                     type="button"
                     aria-label="Toggle theme"
                     on:click=move |_| {
@@ -133,20 +134,77 @@ pub fn ConnectionTestView() -> impl IntoView {
                         });
                     }
                 >
-                    {move || {
-                        if theme.get() == UiTheme::Dark {
-                            "Light mode"
-                        } else {
-                            "Dark mode"
-                        }
-                    }}
+                    <svg
+                        width="13"
+                        height="13"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        {move || {
+                            if theme.get() == UiTheme::Dark {
+                                view! {
+                                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                                }.into_any()
+                            } else {
+                                view! {
+                                    <circle cx="12" cy="12" r="5"/>
+                                    <line x1="12" y1="1" x2="12" y2="3"/>
+                                    <line x1="12" y1="21" x2="12" y2="23"/>
+                                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                                    <line x1="1" y1="12" x2="3" y2="12"/>
+                                    <line x1="21" y1="12" x2="23" y2="12"/>
+                                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                                }.into_any()
+                            }
+                        }}
+                    </svg>
+                    <span>
+                        {move || {
+                            if theme.get() == UiTheme::Dark {
+                                "Light mode"
+                            } else {
+                                "Dark mode"
+                            }
+                        }}
+                    </span>
                 </button>
+            </div>
+
+            <section class="connection-hero" aria-labelledby="connection-title">
+                <div class="app-icon flex items-center justify-center mb-3" aria-hidden="true">
+                    <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
+                        <ellipse cx="19" cy="10" rx="13" ry="4.5" fill="rgba(255,255,255,0.92)"/>
+                        <rect x="6" y="10" width="26" height="10" fill="rgba(255,255,255,0.72)"/>
+                        <ellipse cx="19" cy="20" rx="13" ry="4.5" fill="rgba(255,255,255,0.80)"/>
+                        <rect x="6" y="20" width="26" height="9" fill="rgba(255,255,255,0.55)"/>
+                        <ellipse cx="19" cy="29" rx="13" ry="4.5" fill="rgba(255,255,255,0.68)"/>
+                        <line x1="10" y1="15.5" x2="28" y2="15.5" stroke="rgba(0,200,255,0.85)" stroke-width="1.3" stroke-linecap="round"/>
+                        <line x1="10" y1="25.5" x2="28" y2="25.5" stroke="rgba(0,200,255,0.48)" stroke-width="0.9" stroke-linecap="round"/>
+                        <circle cx="10.5" cy="10" r="2.1" fill="#22c55e"/>
+                        <circle cx="10.5" cy="20" r="2.1" fill="#f59e0b"/>
+                        <circle cx="10.5" cy="29" r="2.1" fill="#60a5fa"/>
+                    </svg>
+                </div>
+                <div class="connection-title-stack">
+                    <h1 id="connection-title">"SQL Intelliscan"</h1>
+                    <p>"> CONNECT TO SQL SERVER"</p>
+                </div>
             </section>
 
             <ConnectionForm on_submit=handle_submit />
 
             <p id="connection-status" class="connection-status" aria-live="polite">
                 {move || status_message.get()}
+            </p>
+
+            <p class="connection-footer">
+                "SQL Intelliscan v2.4 · Microsoft SQL Server 2016 - 2022"
             </p>
         </main>
     }

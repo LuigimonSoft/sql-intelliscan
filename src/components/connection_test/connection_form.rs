@@ -3,6 +3,32 @@ use leptos::prelude::*;
 
 const MAX_TIMEOUT_SECONDS: u64 = 300;
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum AuthMethod {
+    #[default]
+    SqlServer,
+    Windows,
+    AzureAd,
+}
+
+impl AuthMethod {
+    fn hint(self) -> &'static str {
+        match self {
+            Self::SqlServer => "SQL Server auth - username and password.",
+            Self::Windows => "Windows auth (SSPI) - uses current domain credentials.",
+            Self::AzureAd => "Azure Active Directory - for cloud-hosted SQL Server.",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum EncryptionMode {
+    #[default]
+    Mandatory,
+    Optional,
+    Disabled,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConnectionFormField {
     Host,
@@ -169,9 +195,17 @@ pub fn ConnectionForm(on_submit: Callback<ConnectionTestRequest>) -> impl IntoVi
     let (database, set_database) = signal(defaults.database);
     let (username, set_username) = signal(defaults.username);
     let (password, set_password) = signal(defaults.password);
-    let (encrypt, set_encrypt) = signal(defaults.encrypt);
+    let (auth_method, set_auth_method) = signal(AuthMethod::SqlServer);
+    let (show_password, set_show_password) = signal(false);
+    let (encryption_mode, set_encryption_mode) = signal(if defaults.encrypt {
+        EncryptionMode::Mandatory
+    } else {
+        EncryptionMode::Disabled
+    });
     let (trust_server_certificate, set_trust_server_certificate) =
         signal(defaults.trust_server_certificate);
+    let (read_only_intent, set_read_only_intent) = signal(false);
+    let (options_open, set_options_open) = signal(false);
     let (connection_timeout_seconds, set_connection_timeout_seconds) =
         signal(defaults.connection_timeout_seconds);
     let (application_name, set_application_name) = signal(defaults.application_name);
@@ -183,7 +217,7 @@ pub fn ConnectionForm(on_submit: Callback<ConnectionTestRequest>) -> impl IntoVi
         database: database.get_untracked(),
         username: username.get_untracked(),
         password: password.get_untracked(),
-        encrypt: encrypt.get_untracked(),
+        encrypt: encryption_mode.get_untracked() != EncryptionMode::Disabled,
         trust_server_certificate: trust_server_certificate.get_untracked(),
         connection_timeout_seconds: connection_timeout_seconds.get_untracked(),
         application_name: application_name.get_untracked(),
@@ -202,158 +236,282 @@ pub fn ConnectionForm(on_submit: Callback<ConnectionTestRequest>) -> impl IntoVi
     };
 
     let error_for = move |field| field_error(&errors.get(), field);
+    let segment_class = move |method| {
+        if auth_method.get() == method {
+            "seg-btn on"
+        } else {
+            "seg-btn"
+        }
+    };
+    let default_trust_server_certificate = trust_server_certificate.get_untracked();
+    let options_badge = move || {
+        let custom = encryption_mode.get() != EncryptionMode::Mandatory
+            || trust_server_certificate.get() != default_trust_server_certificate
+            || read_only_intent.get()
+            || connection_timeout_seconds.get() != "30";
+
+        if custom {
+            "Custom"
+        } else {
+            "Defaults"
+        }
+    };
 
     view! {
-        <form id="connection-form" class="connection-card" on:submit=submit novalidate>
-            <div class="connection-section">
-                <span class="connection-section-label">"Server"</span>
-            </div>
+        <form id="connection-form" class="connection-form-shell" on:submit=submit novalidate>
+            <div class="card w-full max-w-sm">
+                <div class="sec-row" style="border-top:none;">
+                    <span class="sec-label">"Server"</span>
+                    <div class="sec-line"></div>
+                </div>
 
-            <div class="connection-grid">
-                <label class="connection-field" for="connection-host">
-                    <span>"Host"</span>
+                <div class="row-2">
+                    <label class="col" for="connection-host">
+                        <span class="rl">"Host"</span>
+                        <input
+                            id="connection-host"
+                            class="fi"
+                            name="host"
+                            type="text"
+                            placeholder="192.168.1.10"
+                            autocomplete="off"
+                            spellcheck="false"
+                            prop:value=host
+                            on:input=move |ev| set_host.set(event_target_value(&ev))
+                            aria-invalid=move || error_for(ConnectionFormField::Host).is_some().to_string()
+                        />
+                    </label>
+
+                    <label class="col" for="connection-port">
+                        <span class="rl">"Port"</span>
+                        <input
+                            id="connection-port"
+                            class="fi"
+                            name="port"
+                            type="number"
+                            min="1"
+                            max="65535"
+                            inputmode="numeric"
+                            style="max-width:58px"
+                            prop:value=port
+                            on:input=move |ev| set_port.set(event_target_value(&ev))
+                            aria-invalid=move || error_for(ConnectionFormField::Port).is_some().to_string()
+                        />
+                    </label>
+                </div>
+
+                <label class="row" for="connection-database">
+                    <span class="rl">"Database"</span>
                     <input
-                        id="connection-host"
-                        name="host"
+                        id="connection-database"
+                        class="fi"
+                        name="database"
                         type="text"
+                        placeholder="production_db"
                         autocomplete="off"
                         spellcheck="false"
-                        prop:value=host
-                        on:input=move |ev| set_host.set(event_target_value(&ev))
-                        aria-invalid=move || error_for(ConnectionFormField::Host).is_some().to_string()
+                        prop:value=database
+                        on:input=move |ev| set_database.set(event_target_value(&ev))
+                        aria-invalid=move || error_for(ConnectionFormField::Database).is_some().to_string()
                     />
-                    {move || error_for(ConnectionFormField::Host).map(|message| view! { <small class="connection-error">{message}</small> })}
                 </label>
 
-                <label class="connection-field" for="connection-port">
-                    <span>"Port"</span>
-                    <input
-                        id="connection-port"
-                        name="port"
-                        type="number"
-                        min="1"
-                        max="65535"
-                        inputmode="numeric"
-                        prop:value=port
-                        on:input=move |ev| set_port.set(event_target_value(&ev))
-                        aria-invalid=move || error_for(ConnectionFormField::Port).is_some().to_string()
-                    />
-                    {move || error_for(ConnectionFormField::Port).map(|message| view! { <small class="connection-error">{message}</small> })}
-                </label>
-            </div>
-
-            <label class="connection-field" for="connection-database">
-                <span>"Database"</span>
-                <input
-                    id="connection-database"
-                    name="database"
-                    type="text"
-                    autocomplete="off"
-                    spellcheck="false"
-                    prop:value=database
-                    on:input=move |ev| set_database.set(event_target_value(&ev))
-                    aria-invalid=move || error_for(ConnectionFormField::Database).is_some().to_string()
-                />
-                {move || error_for(ConnectionFormField::Database).map(|message| view! { <small class="connection-error">{message}</small> })}
-            </label>
-
-            <div class="connection-section">
-                <span class="connection-section-label">"Authentication"</span>
-            </div>
-
-            <label class="connection-field" for="connection-username">
-                <span>"Username"</span>
-                <input
-                    id="connection-username"
-                    name="username"
-                    type="text"
-                    autocomplete="username"
-                    spellcheck="false"
-                    prop:value=username
-                    on:input=move |ev| set_username.set(event_target_value(&ev))
-                    aria-invalid=move || error_for(ConnectionFormField::Username).is_some().to_string()
-                />
-                {move || error_for(ConnectionFormField::Username).map(|message| view! { <small class="connection-error">{message}</small> })}
-            </label>
-
-            <label class="connection-field" for="connection-password">
-                <span>"Password"</span>
-                <input
-                    id="connection-password"
-                    name="password"
-                    type="password"
-                    autocomplete="current-password"
-                    prop:value=password
-                    on:input=move |ev| set_password.set(event_target_value(&ev))
-                    aria-invalid=move || error_for(ConnectionFormField::Password).is_some().to_string()
-                />
-                {move || error_for(ConnectionFormField::Password).map(|message| view! { <small class="connection-error">{message}</small> })}
-            </label>
-
-            <div class="connection-section">
-                <span class="connection-section-label">"Connection Options"</span>
-            </div>
-
-            <div class="connection-grid">
-                <label class="connection-field" for="connection-timeout">
-                    <span>"Timeout seconds"</span>
-                    <input
-                        id="connection-timeout"
-                        name="connection_timeout_seconds"
-                        type="number"
-                        min="1"
-                        max=MAX_TIMEOUT_SECONDS.to_string()
-                        inputmode="numeric"
-                        prop:value=connection_timeout_seconds
-                        on:input=move |ev| set_connection_timeout_seconds.set(event_target_value(&ev))
-                        aria-invalid=move || error_for(ConnectionFormField::ConnectionTimeout).is_some().to_string()
-                    />
-                    {move || error_for(ConnectionFormField::ConnectionTimeout).map(|message| view! { <small class="connection-error">{message}</small> })}
-                </label>
-
-                <label class="connection-field" for="connection-application-name">
-                    <span>"Application name"</span>
+                <label class="row" for="connection-application-name">
+                    <span class="rl">"Instance"</span>
                     <input
                         id="connection-application-name"
+                        class="fi"
                         name="application_name"
                         type="text"
+                        placeholder="MSSQLSERVER"
                         autocomplete="off"
                         spellcheck="false"
                         prop:value=application_name
                         on:input=move |ev| set_application_name.set(event_target_value(&ev))
                         aria-invalid=move || error_for(ConnectionFormField::ApplicationName).is_some().to_string()
                     />
-                    {move || error_for(ConnectionFormField::ApplicationName).map(|message| view! { <small class="connection-error">{message}</small> })}
                 </label>
+
+                <div class="sec-row">
+                    <span class="sec-label">"Authentication"</span>
+                    <div class="sec-line"></div>
+                </div>
+
+                <div class="row auth-segment-row">
+                    <div class="seg">
+                        <button class=move || segment_class(AuthMethod::SqlServer) type="button" on:click=move |_| set_auth_method.set(AuthMethod::SqlServer)>
+                            "SQL Server"
+                        </button>
+                        <button class=move || segment_class(AuthMethod::Windows) type="button" on:click=move |_| set_auth_method.set(AuthMethod::Windows)>
+                            "Windows"
+                        </button>
+                        <button class=move || segment_class(AuthMethod::AzureAd) type="button" on:click=move |_| set_auth_method.set(AuthMethod::AzureAd)>
+                            "Azure AD"
+                        </button>
+                    </div>
+                </div>
+
+                <label class="row" for="connection-username">
+                    <span class="rl">
+                        {move || match auth_method.get() {
+                            AuthMethod::SqlServer => "Username",
+                            AuthMethod::Windows => "Domain\\User",
+                            AuthMethod::AzureAd => "Client ID",
+                        }}
+                    </span>
+                    <input
+                        id="connection-username"
+                        class="fi"
+                        name="username"
+                        type="text"
+                        placeholder=move || match auth_method.get() {
+                            AuthMethod::SqlServer => "sa",
+                            AuthMethod::Windows => "DOMAIN\\username",
+                            AuthMethod::AzureAd => "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+                        }
+                        autocomplete="username"
+                        spellcheck="false"
+                        prop:value=username
+                        on:input=move |ev| set_username.set(event_target_value(&ev))
+                        aria-invalid=move || error_for(ConnectionFormField::Username).is_some().to_string()
+                    />
+                </label>
+
+                <label class="row" for="connection-password">
+                    <span class="rl">
+                        {move || if auth_method.get() == AuthMethod::AzureAd { "Tenant ID" } else { "Password" }}
+                    </span>
+                    <input
+                        id="connection-password"
+                        class="fi"
+                        name="password"
+                        type=move || if auth_method.get() == AuthMethod::SqlServer && !show_password.get() { "password" } else { "text" }
+                        placeholder=move || if auth_method.get() == AuthMethod::AzureAd { "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" } else { "••••••••" }
+                        autocomplete="current-password"
+                        prop:value=password
+                        on:input=move |ev| set_password.set(event_target_value(&ev))
+                        aria-invalid=move || error_for(ConnectionFormField::Password).is_some().to_string()
+                    />
+                    <Show when=move || auth_method.get() == AuthMethod::SqlServer>
+                        <button
+                            class="eye-btn"
+                            type="button"
+                            aria-label="Toggle password visibility"
+                            on:click=move |_| set_show_password.update(|show| *show = !*show)
+                        >
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                {move || {
+                                    if show_password.get() {
+                                        view! {
+                                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                                            <line x1="1" y1="1" x2="23" y2="23"/>
+                                        }.into_any()
+                                    } else {
+                                        view! {
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        }.into_any()
+                                    }
+                                }}
+                            </svg>
+                        </button>
+                    </Show>
+                </label>
+
+                <div class="auth-hint">{move || auth_method.get().hint()}</div>
+
+                <div class="opts-header" on:click=move |_| set_options_open.update(|open| *open = !*open)>
+                    <span class="opts-title">"Connection Options"</span>
+                    <div class="opts-right">
+                        <span class="opts-badge">{options_badge}</span>
+                        <svg class=move || if options_open.get() { "chevron open" } else { "chevron" } viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                            <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class=move || if options_open.get() { "opts-body open" } else { "opts-body" }>
+                    <div class="row-2" style="border-top:0.5px solid var(--row-sep)">
+                        <label class="col" for="connection-timeout">
+                            <span class="rl">"Timeout"</span>
+                            <input
+                                id="connection-timeout"
+                                class="fi"
+                                name="connection_timeout_seconds"
+                                type="number"
+                                min="1"
+                                max=MAX_TIMEOUT_SECONDS.to_string()
+                                inputmode="numeric"
+                                style="max-width:44px"
+                                prop:value=connection_timeout_seconds
+                                on:input=move |ev| set_connection_timeout_seconds.set(event_target_value(&ev))
+                                aria-invalid=move || error_for(ConnectionFormField::ConnectionTimeout).is_some().to_string()
+                            />
+                            <span class="unit-label">"sec"</span>
+                        </label>
+
+                        <div class="col">
+                            <span class="rl">"Encrypt"</span>
+                            <div class="sel">
+                                <select
+                                    id="connection-encrypt"
+                                    class="fi"
+                                    name="encrypt"
+                                    on:change=move |ev| {
+                                        let value = event_target_value(&ev);
+                                        set_encryption_mode.set(match value.as_str() {
+                                            "optional" => EncryptionMode::Optional,
+                                            "disabled" => EncryptionMode::Disabled,
+                                            _ => EncryptionMode::Mandatory,
+                                        });
+                                    }
+                                >
+                                    <option value="mandatory" selected=move || encryption_mode.get() == EncryptionMode::Mandatory>"Mandatory"</option>
+                                    <option value="optional" selected=move || encryption_mode.get() == EncryptionMode::Optional>"Optional"</option>
+                                    <option value="disabled" selected=move || encryption_mode.get() == EncryptionMode::Disabled>"Disabled"</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row" style="justify-content:space-between;">
+                        <span class="sw-lbl">"Trust Server Certificate"</span>
+                        <button id="connection-trust-certificate" class=move || if trust_server_certificate.get() { "sw on" } else { "sw" } type="button" aria-pressed=move || trust_server_certificate.get().to_string() on:click=move |_| set_trust_server_certificate.update(|enabled| *enabled = !*enabled)>
+                            <span class="sw-thumb"></span>
+                        </button>
+                    </div>
+
+                    <div class="row" style="justify-content:space-between;">
+                        <span class="sw-lbl">"Read-only Intent"</span>
+                        <button class=move || if read_only_intent.get() { "sw on" } else { "sw" } type="button" aria-pressed=move || read_only_intent.get().to_string() on:click=move |_| set_read_only_intent.update(|enabled| *enabled = !*enabled)>
+                            <span class="sw-thumb"></span>
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <div class="connection-switches">
-                <label class="connection-switch" for="connection-encrypt">
-                    <input
-                        id="connection-encrypt"
-                        name="encrypt"
-                        type="checkbox"
-                        prop:checked=encrypt
-                        on:change=move |ev| set_encrypt.set(event_target_checked(&ev))
-                    />
-                    <span>"Encrypt connection"</span>
-                </label>
-
-                <label class="connection-switch" for="connection-trust-certificate">
-                    <input
-                        id="connection-trust-certificate"
-                        name="trust_server_certificate"
-                        type="checkbox"
-                        prop:checked=trust_server_certificate
-                        on:change=move |ev| set_trust_server_certificate.set(event_target_checked(&ev))
-                    />
-                    <span>"Trust server certificate"</span>
-                </label>
+            <div class="connection-errors" aria-live="polite">
+                {move || {
+                    errors.get().into_iter().map(|error| {
+                        view! { <small class="connection-error">{error.message}</small> }
+                    }).collect_view()
+                }}
             </div>
 
-            <button id="connection-submit" class="connection-submit" type="submit">
-                "Test Connection"
-            </button>
+            <div class="connection-actions">
+                <button class="btn-primary" type="button">
+                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    "Connect & Analyze"
+                </button>
+                <button id="connection-submit" class="btn-secondary" type="submit">
+                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                    "Test Connection"
+                </button>
+            </div>
         </form>
     }
 }
