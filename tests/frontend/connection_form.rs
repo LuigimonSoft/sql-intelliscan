@@ -8,6 +8,142 @@ fn field_names(errors: &[sql_intelliscan_ui::app::FieldValidationError]) -> Vec<
     errors.iter().map(|error| error.field).collect()
 }
 
+
+
+fn expected_message_for_selected_language(field: ConnectionFormField, selected_language: &str) -> &'static str {
+    match selected_language {
+        "en" => match field {
+            ConnectionFormField::Host => "Enter the SQL Server host.",
+            ConnectionFormField::Port => "Enter a port between 1 and 65535.",
+            ConnectionFormField::Database => "Enter the database name.",
+            ConnectionFormField::Username => "Enter the SQL Server username.",
+            ConnectionFormField::Password => "Enter the password.",
+            ConnectionFormField::ConnectionTimeout => "Enter a timeout between 1 and 300 seconds.",
+            ConnectionFormField::ApplicationName => "Enter an application name or leave it empty.",
+        },
+        _ => panic!("unsupported selected language in test suite"),
+    }
+}
+
+fn valid_state_with_required_credentials() -> ConnectionFormState {
+    ConnectionFormState {
+        username: "sa".to_string(),
+        password: "StrongPassword123".to_string(),
+        ..ConnectionFormState::default()
+    }
+}
+
+#[test]
+fn GivenInvalidFieldValuesOneByOne_WhenRequestIsBuilt_ThenValidationMessages_ShouldMatchSelectedLanguage() {
+    let selected_language = "en";
+
+    let scenarios: Vec<(ConnectionFormState, ConnectionFormField)> = vec![
+        (
+            ConnectionFormState {
+                host: "   ".to_string(),
+                ..valid_state_with_required_credentials()
+            },
+            ConnectionFormField::Host,
+        ),
+        (
+            ConnectionFormState {
+                port: "0".to_string(),
+                ..valid_state_with_required_credentials()
+            },
+            ConnectionFormField::Port,
+        ),
+        (
+            ConnectionFormState {
+                database: " ".to_string(),
+                ..valid_state_with_required_credentials()
+            },
+            ConnectionFormField::Database,
+        ),
+        (
+            ConnectionFormState {
+                username: "	".to_string(),
+                ..valid_state_with_required_credentials()
+            },
+            ConnectionFormField::Username,
+        ),
+        (
+            ConnectionFormState {
+                password: "
+".to_string(),
+                ..valid_state_with_required_credentials()
+            },
+            ConnectionFormField::Password,
+        ),
+        (
+            ConnectionFormState {
+                connection_timeout_seconds: "301".to_string(),
+                ..valid_state_with_required_credentials()
+            },
+            ConnectionFormField::ConnectionTimeout,
+        ),
+        (
+            ConnectionFormState {
+                application_name: "   ".to_string(),
+                ..valid_state_with_required_credentials()
+            },
+            ConnectionFormField::ApplicationName,
+        ),
+    ];
+
+    for (state, expected_field) in scenarios {
+        let errors = build_connection_test_request(&state).expect_err("request should be invalid");
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].field, expected_field);
+        assert_eq!(
+            errors[0].message,
+            expected_message_for_selected_language(expected_field, selected_language)
+        );
+    }
+}
+
+#[test]
+fn GivenInvalidFieldCombinations_WhenRequestIsBuilt_ThenValidationMessages_ShouldMatchSelectedLanguage() {
+    let selected_language = "en";
+
+    let combined_invalid_state = ConnectionFormState {
+        host: " ".to_string(),
+        port: "70000".to_string(),
+        database: "".to_string(),
+        username: "	".to_string(),
+        password: " ".to_string(),
+        connection_timeout_seconds: "0".to_string(),
+        application_name: "   ".to_string(),
+        ..ConnectionFormState::default()
+    };
+
+    let errors = build_connection_test_request(&combined_invalid_state)
+        .expect_err("request should be invalid");
+
+    let expected_fields = [
+        ConnectionFormField::Host,
+        ConnectionFormField::Port,
+        ConnectionFormField::Database,
+        ConnectionFormField::Username,
+        ConnectionFormField::Password,
+        ConnectionFormField::ConnectionTimeout,
+        ConnectionFormField::ApplicationName,
+    ];
+
+    assert_eq!(errors.len(), expected_fields.len());
+
+    for expected_field in expected_fields {
+        let error = errors
+            .iter()
+            .find(|error| error.field == expected_field)
+            .expect("expected validation error for each invalid field");
+
+        assert_eq!(
+            error.message,
+            expected_message_for_selected_language(expected_field, selected_language)
+        );
+    }
+}
 #[test]
 fn GivenConnectionFormState_WhenDefaultIsCreated_ThenDefaults_ShouldMatchConnectionRequest() {
     let state = ConnectionFormState::default();
