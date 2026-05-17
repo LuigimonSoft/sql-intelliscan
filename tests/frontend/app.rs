@@ -131,6 +131,35 @@ async fn GivenAppComponent_WhenConnectionFormIsSubmitted_ThenStatus_ShouldRender
     assert_eq!(password.type_(), "password");
 }
 
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn GivenConnectionFormValues_WhenBuiltAndConnectionIsTested_ThenWorkflow_ShouldConnectSuccessfully() {
+    let state = sql_intelliscan_ui::app::ConnectionFormState {
+        host: "localhost".to_string(),
+        port: "1433".to_string(),
+        database: "master".to_string(),
+        username: "sa".to_string(),
+        password: "StrongPassword123".to_string(),
+        encrypt: true,
+        trust_server_certificate: true,
+        connection_timeout_seconds: "30".to_string(),
+        application_name: "SQL Intelliscan Integration Test".to_string(),
+    };
+
+    let request = sql_intelliscan_ui::app::build_connection_test_request(&state)
+        .expect("form values should build a valid connection request");
+
+    let response = futures::executor::block_on(
+        sql_intelliscan_ui::services::connection_service::test_connection(request),
+    )
+    .expect("connection test should succeed with mocked tauri backend");
+
+    assert!(response.success);
+    assert_eq!(response.message, "Connection successful");
+    assert_eq!(response.database.as_deref(), Some("master"));
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn GivenName_WhenInvokeGreetSyncIsCalled_ThenResponse_ShouldContainGreeting() {
