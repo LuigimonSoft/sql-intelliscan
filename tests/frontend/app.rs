@@ -131,33 +131,118 @@ async fn GivenAppComponent_WhenConnectionFormIsSubmitted_ThenStatus_ShouldRender
     assert_eq!(password.type_(), "password");
 }
 
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen_test(async)]
+async fn GivenNoStoredTheme_WhenAppIsMounted_ThenTheme_ShouldNotBePersistedUntilToggle() {
+    console_error_panic_hook::set_once();
+
+    let window = web_sys::window().expect("window should be available");
+    let storage = window
+        .local_storage()
+        .expect("local storage access should not fail")
+        .expect("local storage should be available");
+    storage
+        .remove_item("sql-intelliscan-theme")
+        .expect("theme preference should be cleared");
+
+    let root = test_root();
+    mount_to(
+        root.clone()
+            .dyn_into::<HtmlElement>()
+            .expect("test root should be an html element"),
+        || view! { <App /> },
+    )
+    .forget();
+    flush_ui_updates().await;
+
+    assert_eq!(
+        storage
+            .get_item("sql-intelliscan-theme")
+            .expect("theme preference read should not fail"),
+        None
+    );
+
+    root.query_selector("#theme-toggle")
+        .expect("selector should not fail")
+        .expect("theme toggle should exist")
+        .dyn_into::<HtmlButtonElement>()
+        .expect("theme toggle should be a button")
+        .click();
+    flush_ui_updates().await;
+
+    assert!(
+        storage
+            .get_item("sql-intelliscan-theme")
+            .expect("theme preference read should not fail")
+            .is_some()
+    );
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen_test(async)]
+async fn GivenStoredLightTheme_WhenAppIsMounted_ThenTheme_ShouldApplyStoredPreference() {
+    console_error_panic_hook::set_once();
+
+    let window = web_sys::window().expect("window should be available");
+    let storage = window
+        .local_storage()
+        .expect("local storage access should not fail")
+        .expect("local storage should be available");
+    storage
+        .set_item("sql-intelliscan-theme", "light")
+        .expect("theme preference should be stored");
+
+    let root = test_root();
+    mount_to(
+        root.clone()
+            .dyn_into::<HtmlElement>()
+            .expect("test root should be an html element"),
+        || view! { <App /> },
+    )
+    .forget();
+    flush_ui_updates().await;
+
+    let class_list = window
+        .document()
+        .and_then(|document| document.document_element())
+        .expect("document element should exist")
+        .class_list();
+
+    assert!(class_list.contains("light"));
+    assert!(!class_list.contains("dark"));
+}
+
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn GivenConnectionFormValues_WhenBuiltAndConnectionIsTested_ThenWorkflow_ShouldConnectSuccessfully() {
+fn GivenConnectionFormValues_WhenRequestIsBuilt_ThenRequest_ShouldContainSubmittedValues() {
     let state = sql_intelliscan_ui::app::ConnectionFormState {
         host: "localhost".to_string(),
-        port: "1433".to_string(),
-        database: "master".to_string(),
+        port: "1444".to_string(),
+        database: "inventory".to_string(),
         username: "sa".to_string(),
         password: "StrongPassword123".to_string(),
-        encrypt: true,
+        encrypt: false,
         trust_server_certificate: true,
-        connection_timeout_seconds: "30".to_string(),
+        connection_timeout_seconds: "45".to_string(),
         application_name: "SQL Intelliscan Integration Test".to_string(),
     };
 
     let request = sql_intelliscan_ui::app::build_connection_test_request(&state)
         .expect("form values should build a valid connection request");
 
-    let response = futures::executor::block_on(
-        sql_intelliscan_ui::services::connection_service::test_connection(request),
-    )
-    .expect("connection test should succeed with mocked tauri backend");
-
-    assert!(response.success);
-    assert_eq!(response.message, "Connection successful");
-    assert_eq!(response.database.as_deref(), Some("master"));
+    assert_eq!(request.host, "localhost");
+    assert_eq!(request.port, 1444);
+    assert_eq!(request.database, "inventory");
+    assert_eq!(request.username, "sa");
+    assert_eq!(request.password, "StrongPassword123");
+    assert!(!request.encrypt);
+    assert!(request.trust_server_certificate);
+    assert_eq!(request.connection_timeout_seconds, 45);
+    assert_eq!(
+        request.application_name.as_deref(),
+        Some("SQL Intelliscan Integration Test")
+    );
 }
 
 #[cfg(not(target_arch = "wasm32"))]

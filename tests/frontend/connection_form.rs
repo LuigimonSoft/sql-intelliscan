@@ -10,18 +10,15 @@ fn field_names(errors: &[sql_intelliscan_ui::app::FieldValidationError]) -> Vec<
 
 
 
-fn expected_message_for_selected_language(field: ConnectionFormField, selected_language: &str) -> &'static str {
-    match selected_language {
-        "en" => match field {
-            ConnectionFormField::Host => "Enter the SQL Server host.",
-            ConnectionFormField::Port => "Enter a port between 1 and 65535.",
-            ConnectionFormField::Database => "Enter the database name.",
-            ConnectionFormField::Username => "Enter the SQL Server username.",
-            ConnectionFormField::Password => "Enter the password.",
-            ConnectionFormField::ConnectionTimeout => "Enter a timeout between 1 and 300 seconds.",
-            ConnectionFormField::ApplicationName => "Enter an application name or leave it empty.",
-        },
-        _ => panic!("unsupported selected language in test suite"),
+fn expected_validation_message(field: ConnectionFormField) -> &'static str {
+    match field {
+        ConnectionFormField::Host => "Enter the SQL Server host.",
+        ConnectionFormField::Port => "Enter a port between 1 and 65535.",
+        ConnectionFormField::Database => "Enter the database name.",
+        ConnectionFormField::Username => "Enter the SQL Server username.",
+        ConnectionFormField::Password => "Enter the password.",
+        ConnectionFormField::ConnectionTimeout => "Enter a timeout between 1 and 300 seconds.",
+        ConnectionFormField::ApplicationName => "Enter an application name or leave it empty.",
     }
 }
 
@@ -34,9 +31,7 @@ fn valid_state_with_required_credentials() -> ConnectionFormState {
 }
 
 #[test]
-fn GivenInvalidFieldValuesOneByOne_WhenRequestIsBuilt_ThenValidationMessages_ShouldMatchSelectedLanguage() {
-    let selected_language = "en";
-
+fn GivenInvalidFieldValuesOneByOne_WhenRequestIsBuilt_ThenValidationMessages_ShouldMatchField() {
     let scenarios: Vec<(ConnectionFormState, ConnectionFormField)> = vec![
         (
             ConnectionFormState {
@@ -97,15 +92,13 @@ fn GivenInvalidFieldValuesOneByOne_WhenRequestIsBuilt_ThenValidationMessages_Sho
         assert_eq!(errors[0].field, expected_field);
         assert_eq!(
             errors[0].message,
-            expected_message_for_selected_language(expected_field, selected_language)
+            expected_validation_message(expected_field)
         );
     }
 }
 
 #[test]
-fn GivenInvalidFieldCombinations_WhenRequestIsBuilt_ThenValidationMessages_ShouldMatchSelectedLanguage() {
-    let selected_language = "en";
-
+fn GivenInvalidFieldCombinations_WhenRequestIsBuilt_ThenValidationMessages_ShouldMatchFields() {
     let combined_invalid_state = ConnectionFormState {
         host: " ".to_string(),
         port: "70000".to_string(),
@@ -140,7 +133,7 @@ fn GivenInvalidFieldCombinations_WhenRequestIsBuilt_ThenValidationMessages_Shoul
 
         assert_eq!(
             error.message,
-            expected_message_for_selected_language(expected_field, selected_language)
+            expected_validation_message(expected_field)
         );
     }
 }

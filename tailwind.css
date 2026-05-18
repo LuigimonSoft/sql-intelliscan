@@ -44,7 +44,7 @@ html.light {
   --text: #1a1a2e;
   --text2: #3a3a5c;
   --text3: #7070a0;
-  --text4: #a0a0c0;
+  --text4: #56567a;
   --accent: #4f46e5;
   --accent-h: #3f38c4;
   --accent-g: #16a34a;
@@ -176,7 +176,8 @@ html.light .grid-layer {
   animation-delay: 2.5s;
 }
 
-.theme-pill {
+.theme-pill,
+.theme-toggle {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -193,7 +194,8 @@ html.light .grid-layer {
   transition: all 0.15s;
 }
 
-.theme-pill:hover {
+.theme-pill:hover,
+.theme-toggle:hover {
   color: var(--text2);
   border-color: rgba(99, 102, 241, 0.4);
 }
@@ -528,10 +530,15 @@ html.light .seg-btn.on {
 
 .opts-header {
   display: flex;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
   padding: 9px 14px;
   border-top: 0.5px solid var(--sep);
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  background: transparent;
   cursor: pointer;
   transition: background 0.12s;
   user-select: none;
@@ -634,6 +641,10 @@ html.light .seg-btn.on {
   font-size: 11px;
   line-height: 1.25;
   text-align: center;
+}
+
+html.light .connection-error {
+  color: #b42318;
 }
 
 .connection-actions {
@@ -742,5 +753,32 @@ html.light .seg-btn.on {
 
   .rl {
     min-width: 76px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+
+  .grid-layer,
+  .orb,
+  .btn-primary {
+    animation: none;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .chevron,
+  .opts-body,
+  .sw,
+  .sw-thumb {
+    transition: none;
+  }
+
+  .btn-primary:hover {
+    transform: none;
   }
 }

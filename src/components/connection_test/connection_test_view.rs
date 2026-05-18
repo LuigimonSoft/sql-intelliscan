@@ -10,6 +10,7 @@ enum UiTheme {
 }
 
 impl UiTheme {
+    #[cfg(target_arch = "wasm32")]
     fn as_str(self) -> &'static str {
         match self {
             Self::Light => "light",
@@ -54,6 +55,7 @@ fn resolve_initial_theme() -> UiTheme {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg_attr(coverage, allow(dead_code))]
 fn resolve_initial_theme() -> UiTheme {
     UiTheme::Dark
 }
@@ -70,7 +72,14 @@ fn apply_theme(theme: UiTheme) {
                 let _ = class_list.toggle_with_force("light", matches!(theme, UiTheme::Light));
             }
         }
+    }
+}
 
+#[cfg(target_arch = "wasm32")]
+fn persist_theme(theme: UiTheme) {
+    use web_sys::window;
+
+    if let Some(window) = window() {
         if let Ok(Some(storage)) = window.local_storage() {
             let _ = storage.set_item("sql-intelliscan-theme", theme.as_str());
         }
@@ -78,7 +87,7 @@ fn apply_theme(theme: UiTheme) {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn apply_theme(_theme: UiTheme) {}
+fn persist_theme(_theme: UiTheme) {}
 
 #[cfg(not(coverage))]
 #[component]
@@ -131,6 +140,7 @@ pub fn ConnectionTestView() -> impl IntoView {
                     on:click=move |_| {
                         set_theme.update(|current| {
                             *current = current.toggle();
+                            persist_theme(*current);
                         });
                     }
                 >
@@ -204,7 +214,7 @@ pub fn ConnectionTestView() -> impl IntoView {
             </p>
 
             <p class="connection-footer">
-                "SQL Intelliscan v2.4 · Microsoft SQL Server 2016 - 2022"
+                {concat!("SQL Intelliscan v", env!("CARGO_PKG_VERSION"), " - Microsoft SQL Server 2016 - 2022")}
             </p>
         </main>
     }
@@ -234,6 +244,7 @@ pub fn ConnectionTestView() -> impl IntoView {
                     on:click=move |_| {
                         set_theme.update(|current| {
                             *current = current.toggle();
+                            persist_theme(*current);
                         });
                     }
                 >

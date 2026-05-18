@@ -3,32 +3,6 @@ use leptos::prelude::*;
 
 const MAX_TIMEOUT_SECONDS: u64 = 300;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-enum AuthMethod {
-    #[default]
-    SqlServer,
-    Windows,
-    AzureAd,
-}
-
-impl AuthMethod {
-    fn hint(self) -> &'static str {
-        match self {
-            Self::SqlServer => "SQL Server auth - username and password.",
-            Self::Windows => "Windows auth (SSPI) - uses current domain credentials.",
-            Self::AzureAd => "Azure Active Directory - for cloud-hosted SQL Server.",
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-enum EncryptionMode {
-    #[default]
-    Mandatory,
-    Optional,
-    Disabled,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConnectionFormField {
     Host,
@@ -195,16 +169,10 @@ pub fn ConnectionForm(on_submit: Callback<ConnectionTestRequest>) -> impl IntoVi
     let (database, set_database) = signal(defaults.database);
     let (username, set_username) = signal(defaults.username);
     let (password, set_password) = signal(defaults.password);
-    let (auth_method, set_auth_method) = signal(AuthMethod::SqlServer);
     let (show_password, set_show_password) = signal(false);
-    let (encryption_mode, set_encryption_mode) = signal(if defaults.encrypt {
-        EncryptionMode::Mandatory
-    } else {
-        EncryptionMode::Disabled
-    });
+    let (encrypt, set_encrypt) = signal(defaults.encrypt);
     let (trust_server_certificate, set_trust_server_certificate) =
         signal(defaults.trust_server_certificate);
-    let (read_only_intent, set_read_only_intent) = signal(false);
     let (options_open, set_options_open) = signal(false);
     let (connection_timeout_seconds, set_connection_timeout_seconds) =
         signal(defaults.connection_timeout_seconds);
@@ -217,7 +185,7 @@ pub fn ConnectionForm(on_submit: Callback<ConnectionTestRequest>) -> impl IntoVi
         database: database.get_untracked(),
         username: username.get_untracked(),
         password: password.get_untracked(),
-        encrypt: encryption_mode.get_untracked() != EncryptionMode::Disabled,
+        encrypt: encrypt.get_untracked(),
         trust_server_certificate: trust_server_certificate.get_untracked(),
         connection_timeout_seconds: connection_timeout_seconds.get_untracked(),
         application_name: application_name.get_untracked(),
@@ -236,19 +204,13 @@ pub fn ConnectionForm(on_submit: Callback<ConnectionTestRequest>) -> impl IntoVi
     };
 
     let error_for = move |field| field_error(&errors.get(), field);
-    let segment_class = move |method| {
-        if auth_method.get() == method {
-            "seg-btn on"
-        } else {
-            "seg-btn"
-        }
-    };
+    let default_encrypt = encrypt.get_untracked();
     let default_trust_server_certificate = trust_server_certificate.get_untracked();
+    let default_connection_timeout_seconds = connection_timeout_seconds.get_untracked();
     let options_badge = move || {
-        let custom = encryption_mode.get() != EncryptionMode::Mandatory
+        let custom = encrypt.get() != default_encrypt
             || trust_server_certificate.get() != default_trust_server_certificate
-            || read_only_intent.get()
-            || connection_timeout_seconds.get() != "30";
+            || connection_timeout_seconds.get() != default_connection_timeout_seconds;
 
         if custom {
             "Custom"
@@ -317,13 +279,13 @@ pub fn ConnectionForm(on_submit: Callback<ConnectionTestRequest>) -> impl IntoVi
                 </label>
 
                 <label class="row" for="connection-application-name">
-                    <span class="rl">"Instance"</span>
+                    <span class="rl">"Application"</span>
                     <input
                         id="connection-application-name"
                         class="fi"
                         name="application_name"
                         type="text"
-                        placeholder="MSSQLSERVER"
+                        placeholder="SQL Intelliscan"
                         autocomplete="off"
                         spellcheck="false"
                         prop:value=application_name
@@ -337,38 +299,14 @@ pub fn ConnectionForm(on_submit: Callback<ConnectionTestRequest>) -> impl IntoVi
                     <div class="sec-line"></div>
                 </div>
 
-                <div class="row auth-segment-row">
-                    <div class="seg">
-                        <button class=move || segment_class(AuthMethod::SqlServer) type="button" on:click=move |_| set_auth_method.set(AuthMethod::SqlServer)>
-                            "SQL Server"
-                        </button>
-                        <button class=move || segment_class(AuthMethod::Windows) type="button" on:click=move |_| set_auth_method.set(AuthMethod::Windows)>
-                            "Windows"
-                        </button>
-                        <button class=move || segment_class(AuthMethod::AzureAd) type="button" on:click=move |_| set_auth_method.set(AuthMethod::AzureAd)>
-                            "Azure AD"
-                        </button>
-                    </div>
-                </div>
-
                 <label class="row" for="connection-username">
-                    <span class="rl">
-                        {move || match auth_method.get() {
-                            AuthMethod::SqlServer => "Username",
-                            AuthMethod::Windows => "Domain\\User",
-                            AuthMethod::AzureAd => "Client ID",
-                        }}
-                    </span>
+                    <span class="rl">"Username"</span>
                     <input
                         id="connection-username"
                         class="fi"
                         name="username"
                         type="text"
-                        placeholder=move || match auth_method.get() {
-                            AuthMethod::SqlServer => "sa",
-                            AuthMethod::Windows => "DOMAIN\\username",
-                            AuthMethod::AzureAd => "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-                        }
+                        placeholder="sa"
                         autocomplete="username"
                         spellcheck="false"
                         prop:value=username
@@ -378,49 +316,51 @@ pub fn ConnectionForm(on_submit: Callback<ConnectionTestRequest>) -> impl IntoVi
                 </label>
 
                 <label class="row" for="connection-password">
-                    <span class="rl">
-                        {move || if auth_method.get() == AuthMethod::AzureAd { "Tenant ID" } else { "Password" }}
-                    </span>
+                    <span class="rl">"Password"</span>
                     <input
                         id="connection-password"
                         class="fi"
                         name="password"
-                        type=move || if auth_method.get() == AuthMethod::SqlServer && !show_password.get() { "password" } else { "text" }
-                        placeholder=move || if auth_method.get() == AuthMethod::AzureAd { "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" } else { "••••••••" }
+                        type=move || if show_password.get() { "text" } else { "password" }
+                        placeholder="Password"
                         autocomplete="current-password"
                         prop:value=password
                         on:input=move |ev| set_password.set(event_target_value(&ev))
                         aria-invalid=move || error_for(ConnectionFormField::Password).is_some().to_string()
                     />
-                    <Show when=move || auth_method.get() == AuthMethod::SqlServer>
-                        <button
-                            class="eye-btn"
-                            type="button"
-                            aria-label="Toggle password visibility"
-                            on:click=move |_| set_show_password.update(|show| *show = !*show)
-                        >
-                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                {move || {
-                                    if show_password.get() {
-                                        view! {
-                                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                                            <line x1="1" y1="1" x2="23" y2="23"/>
-                                        }.into_any()
-                                    } else {
-                                        view! {
-                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                            <circle cx="12" cy="12" r="3"/>
-                                        }.into_any()
-                                    }
-                                }}
-                            </svg>
-                        </button>
-                    </Show>
+                    <button
+                        class="eye-btn"
+                        type="button"
+                        aria-label="Toggle password visibility"
+                        on:click=move |_| set_show_password.update(|show| *show = !*show)
+                    >
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            {move || {
+                                if show_password.get() {
+                                    view! {
+                                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                                        <line x1="1" y1="1" x2="23" y2="23"/>
+                                    }.into_any()
+                                } else {
+                                    view! {
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    }.into_any()
+                                }
+                            }}
+                        </svg>
+                    </button>
                 </label>
 
-                <div class="auth-hint">{move || auth_method.get().hint()}</div>
+                <div class="auth-hint">"SQL Server authentication uses the username and password fields."</div>
 
-                <div class="opts-header" on:click=move |_| set_options_open.update(|open| *open = !*open)>
+                <button
+                    class="opts-header"
+                    type="button"
+                    aria-expanded=move || options_open.get().to_string()
+                    aria-controls="connection-options"
+                    on:click=move |_| set_options_open.update(|open| *open = !*open)
+                >
                     <span class="opts-title">"Connection Options"</span>
                     <div class="opts-right">
                         <span class="opts-badge">{options_badge}</span>
@@ -428,9 +368,9 @@ pub fn ConnectionForm(on_submit: Callback<ConnectionTestRequest>) -> impl IntoVi
                             <polyline points="9 18 15 12 9 6"/>
                         </svg>
                     </div>
-                </div>
+                </button>
 
-                <div class=move || if options_open.get() { "opts-body open" } else { "opts-body" }>
+                <div id="connection-options" class=move || if options_open.get() { "opts-body open" } else { "opts-body" }>
                     <div class="row-2" style="border-top:0.5px solid var(--row-sep)">
                         <label class="col" for="connection-timeout">
                             <span class="rl">"Timeout"</span>
@@ -450,7 +390,7 @@ pub fn ConnectionForm(on_submit: Callback<ConnectionTestRequest>) -> impl IntoVi
                             <span class="unit-label">"sec"</span>
                         </label>
 
-                        <div class="col">
+                        <label class="col" for="connection-encrypt">
                             <span class="rl">"Encrypt"</span>
                             <div class="sel">
                                 <select
@@ -459,31 +399,19 @@ pub fn ConnectionForm(on_submit: Callback<ConnectionTestRequest>) -> impl IntoVi
                                     name="encrypt"
                                     on:change=move |ev| {
                                         let value = event_target_value(&ev);
-                                        set_encryption_mode.set(match value.as_str() {
-                                            "optional" => EncryptionMode::Optional,
-                                            "disabled" => EncryptionMode::Disabled,
-                                            _ => EncryptionMode::Mandatory,
-                                        });
+                                        set_encrypt.set(value.as_str() != "disabled");
                                     }
                                 >
-                                    <option value="mandatory" selected=move || encryption_mode.get() == EncryptionMode::Mandatory>"Mandatory"</option>
-                                    <option value="optional" selected=move || encryption_mode.get() == EncryptionMode::Optional>"Optional"</option>
-                                    <option value="disabled" selected=move || encryption_mode.get() == EncryptionMode::Disabled>"Disabled"</option>
+                                    <option value="mandatory" selected=move || encrypt.get()>"Mandatory"</option>
+                                    <option value="disabled" selected=move || !encrypt.get()>"Disabled"</option>
                                 </select>
                             </div>
-                        </div>
+                        </label>
                     </div>
 
                     <div class="row" style="justify-content:space-between;">
                         <span class="sw-lbl">"Trust Server Certificate"</span>
-                        <button id="connection-trust-certificate" class=move || if trust_server_certificate.get() { "sw on" } else { "sw" } type="button" aria-pressed=move || trust_server_certificate.get().to_string() on:click=move |_| set_trust_server_certificate.update(|enabled| *enabled = !*enabled)>
-                            <span class="sw-thumb"></span>
-                        </button>
-                    </div>
-
-                    <div class="row" style="justify-content:space-between;">
-                        <span class="sw-lbl">"Read-only Intent"</span>
-                        <button class=move || if read_only_intent.get() { "sw on" } else { "sw" } type="button" aria-pressed=move || read_only_intent.get().to_string() on:click=move |_| set_read_only_intent.update(|enabled| *enabled = !*enabled)>
+                        <button id="connection-trust-certificate" class=move || if trust_server_certificate.get() { "sw on" } else { "sw" } type="button" aria-label="Trust server certificate" aria-pressed=move || trust_server_certificate.get().to_string() on:click=move |_| set_trust_server_certificate.update(|enabled| *enabled = !*enabled)>
                             <span class="sw-thumb"></span>
                         </button>
                     </div>
@@ -499,15 +427,9 @@ pub fn ConnectionForm(on_submit: Callback<ConnectionTestRequest>) -> impl IntoVi
             </div>
 
             <div class="connection-actions">
-                <button class="btn-primary" type="button">
+                <button id="connection-submit" class="btn-primary" type="submit">
                     <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                    </svg>
-                    "Connect & Analyze"
-                </button>
-                <button id="connection-submit" class="btn-secondary" type="submit">
-                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
                     </svg>
                     "Test Connection"
                 </button>
