@@ -60,6 +60,7 @@ fn generate_test_modules(test_type: &str) {
 }
 
 fn main() {
+    println!("cargo:rustc-check-cfg=cfg(coverage)");
     generate_test_modules("backend");
     generate_test_modules("frontend");
 }
