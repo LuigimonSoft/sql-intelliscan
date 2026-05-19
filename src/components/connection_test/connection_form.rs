@@ -162,7 +162,10 @@ fn field_error(
 
 #[cfg(not(coverage))]
 #[component]
-pub fn ConnectionForm(on_submit: Callback<ConnectionTestRequest>) -> impl IntoView {
+pub fn ConnectionForm(
+    on_submit: Callback<ConnectionTestRequest>,
+    #[prop(into)] is_loading: Signal<bool>,
+) -> impl IntoView {
     let defaults = ConnectionFormState::default();
     let (host, set_host) = signal(defaults.host);
     let (port, set_port) = signal(defaults.port);
@@ -193,6 +196,10 @@ pub fn ConnectionForm(on_submit: Callback<ConnectionTestRequest>) -> impl IntoVi
 
     let submit = move |ev: leptos::ev::SubmitEvent| {
         ev.prevent_default();
+
+        if is_loading.get_untracked() {
+            return;
+        }
 
         match build_connection_test_request(&current_state()) {
             Ok(request) => {
@@ -427,11 +434,16 @@ pub fn ConnectionForm(on_submit: Callback<ConnectionTestRequest>) -> impl IntoVi
             </div>
 
             <div class="connection-actions">
-                <button id="connection-submit" class="btn-primary" type="submit">
+                <button
+                    id="connection-submit"
+                    class="btn-primary"
+                    type="submit"
+                    disabled=move || is_loading.get()
+                >
                     <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
                     </svg>
-                    "Test Connection"
+                    {move || if is_loading.get() { "Testing..." } else { "Test Connection" }}
                 </button>
             </div>
         </form>
@@ -440,8 +452,12 @@ pub fn ConnectionForm(on_submit: Callback<ConnectionTestRequest>) -> impl IntoVi
 
 #[cfg(coverage)]
 #[component]
-pub fn ConnectionForm(on_submit: Callback<ConnectionTestRequest>) -> impl IntoView {
+pub fn ConnectionForm(
+    on_submit: Callback<ConnectionTestRequest>,
+    #[prop(into)] is_loading: Signal<bool>,
+) -> impl IntoView {
     let _ = on_submit;
+    let _ = is_loading;
     let defaults = ConnectionFormState::default();
 
     view! {

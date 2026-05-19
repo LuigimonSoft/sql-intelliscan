@@ -143,9 +143,15 @@ pub fn ConnectionTestView() -> impl IntoView {
     });
 
     let handle_submit = Callback::new(move |request: ConnectionTestRequest| {
+        if matches!(status.get_untracked(), ConnectionTestStatus::Loading) {
+            return;
+        }
+
         set_status.set(ConnectionTestStatus::Loading);
         spawn_connection_test(request, set_status);
     });
+
+    let is_loading = Signal::derive(move || matches!(status.get(), ConnectionTestStatus::Loading));
 
     view! {
         <div class="bg-dark">
@@ -236,7 +242,7 @@ pub fn ConnectionTestView() -> impl IntoView {
                 </div>
             </section>
 
-            <ConnectionForm on_submit=handle_submit />
+            <ConnectionForm on_submit=handle_submit is_loading=is_loading />
 
             <p id="connection-status" class="connection-status" aria-live="polite">
                 {move || connection_status_message(&status.get())}
@@ -287,7 +293,7 @@ pub fn ConnectionTestView() -> impl IntoView {
                 </button>
             </section>
 
-            <ConnectionForm on_submit=Callback::new(|_| {}) />
+            <ConnectionForm on_submit=Callback::new(|_| {}) is_loading=false />
 
             <p id="connection-status" class="connection-status" aria-live="polite"></p>
         </main>

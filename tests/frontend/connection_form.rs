@@ -278,6 +278,8 @@ fn GivenConnectionFormSource_WhenReviewed_ThenComponent_ShouldNotUseUnsafeBounda
     assert!(!source.contains("log::"));
     assert!(!source.contains("connection_string"));
     assert!(!source.contains("connectionString"));
+    assert!(source.contains("is_loading.get_untracked()"));
+    assert!(source.contains("disabled=move || is_loading.get()"));
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -289,7 +291,7 @@ mod native_render_tests {
     #[test]
     fn GivenConnectionForm_WhenRenderedToHtml_ThenPasswordInput_ShouldBeMasked() {
         let html = view! {
-            <ConnectionForm on_submit=Callback::new(|_| {}) />
+            <ConnectionForm on_submit=Callback::new(|_| {}) is_loading=false />
         }
         .to_html();
 
@@ -341,7 +343,7 @@ mod wasm_render_tests {
             root.clone()
                 .dyn_into::<HtmlElement>()
                 .expect("test root should be an html element"),
-            || view! { <sql_intelliscan_ui::app::ConnectionForm on_submit=Callback::new(|_| {}) /> },
+            || view! { <sql_intelliscan_ui::app::ConnectionForm on_submit=Callback::new(|_| {}) is_loading=false /> },
         )
         .forget();
 
@@ -371,7 +373,7 @@ mod wasm_render_tests {
                 view! {
                     <sql_intelliscan_ui::app::ConnectionForm on_submit=Callback::new(move |request| {
                         *request_sink.lock().expect("request lock should not be poisoned") = Some(request);
-                    }) />
+                    }) is_loading=false />
                 }
             },
         )
@@ -418,5 +420,36 @@ mod wasm_render_tests {
         assert_eq!(request.database, "master");
         assert_eq!(request.username, "sa");
         assert_eq!(request.password, "StrongPassword123");
+    }
+
+    #[wasm_bindgen_test]
+    fn GivenConnectionForm_WhenLoading_ThenSubmitAction_ShouldBeDisabled() {
+        console_error_panic_hook::set_once();
+
+        let root = test_root();
+
+        mount_to(
+            root.clone()
+                .dyn_into::<HtmlElement>()
+                .expect("test root should be an html element"),
+            || {
+                view! {
+                    <sql_intelliscan_ui::app::ConnectionForm
+                        on_submit=Callback::new(|_| {})
+                        is_loading=true
+                    />
+                }
+            },
+        )
+        .forget();
+
+        let button = root
+            .query_selector("#connection-submit")
+            .expect("selector should not fail")
+            .expect("submit button should exist")
+            .dyn_into::<HtmlButtonElement>()
+            .expect("submit should be a button");
+
+        assert!(button.disabled());
     }
 }
