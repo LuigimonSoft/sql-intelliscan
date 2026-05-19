@@ -30,6 +30,7 @@ wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 async fn flush_ui_updates() {
     let _ = JsFuture::from(js_sys::Promise::resolve(&JsValue::NULL)).await;
     let _ = JsFuture::from(js_sys::Promise::resolve(&JsValue::NULL)).await;
+    let _ = JsFuture::from(js_sys::Promise::resolve(&JsValue::NULL)).await;
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -126,7 +127,7 @@ async fn GivenAppComponent_WhenConnectionFormIsSubmitted_ThenStatus_ShouldRender
         .and_then(|element| element.text_content())
         .expect("status should expose text");
 
-    assert!(status.contains("Ready to test localhost:1433 using database master"));
+    assert!(status.contains("Tauri backend is not available."));
     assert!(!status.contains("StrongPassword123"));
     assert_eq!(password.type_(), "password");
 }

@@ -1,7 +1,11 @@
 use crate::components::connection_test::ConnectionForm;
 #[cfg(not(coverage))]
-use crate::models::ConnectionTestRequest;
+use crate::models::{ConnectionTestRequest, ConnectionTestStatus};
+#[cfg(not(coverage))]
+use crate::services::connection_service::test_connection;
 use leptos::prelude::*;
+#[cfg(target_arch = "wasm32")]
+use leptos::task::spawn_local;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum UiTheme {
@@ -90,9 +94,47 @@ fn persist_theme(theme: UiTheme) {
 fn persist_theme(_theme: UiTheme) {}
 
 #[cfg(not(coverage))]
+fn connection_status_message(status: &ConnectionTestStatus) -> String {
+    match status {
+        ConnectionTestStatus::Idle => String::new(),
+        ConnectionTestStatus::Loading => "Testing SQL Server connection...".to_string(),
+        ConnectionTestStatus::Success(result) => result.message.clone(),
+        ConnectionTestStatus::Error(error) => error.message.clone(),
+    }
+}
+
+#[cfg(not(coverage))]
+#[cfg(target_arch = "wasm32")]
+fn spawn_connection_test(
+    request: ConnectionTestRequest,
+    set_status: WriteSignal<ConnectionTestStatus>,
+) {
+    spawn_local(async move {
+        set_status.set(match test_connection(request).await {
+            Ok(result) => ConnectionTestStatus::Success(result),
+            Err(error) => ConnectionTestStatus::Error(error),
+        });
+    });
+}
+
+#[cfg(not(coverage))]
+#[cfg(not(target_arch = "wasm32"))]
+fn spawn_connection_test(
+    request: ConnectionTestRequest,
+    set_status: WriteSignal<ConnectionTestStatus>,
+) {
+    set_status.set(
+        match futures::executor::block_on(test_connection(request)) {
+            Ok(result) => ConnectionTestStatus::Success(result),
+            Err(error) => ConnectionTestStatus::Error(error),
+        },
+    );
+}
+
+#[cfg(not(coverage))]
 #[component]
 pub fn ConnectionTestView() -> impl IntoView {
-    let (status_message, set_status_message) = signal(String::new());
+    let (status, set_status) = signal(ConnectionTestStatus::Idle);
     let (theme, set_theme) = signal(resolve_initial_theme());
 
     #[cfg(target_arch = "wasm32")]
@@ -101,21 +143,8 @@ pub fn ConnectionTestView() -> impl IntoView {
     });
 
     let handle_submit = Callback::new(move |request: ConnectionTestRequest| {
-        let encryption = if request.encrypt {
-            "encrypted"
-        } else {
-            "unencrypted"
-        };
-        let certificate_policy = if request.trust_server_certificate {
-            "trusting server certificate"
-        } else {
-            "validating server certificate"
-        };
-
-        set_status_message.set(format!(
-            "Ready to test {}:{} using database {} ({}, {}).",
-            request.host, request.port, request.database, encryption, certificate_policy
-        ));
+        set_status.set(ConnectionTestStatus::Loading);
+        spawn_connection_test(request, set_status);
     });
 
     view! {
@@ -210,7 +239,7 @@ pub fn ConnectionTestView() -> impl IntoView {
             <ConnectionForm on_submit=handle_submit />
 
             <p id="connection-status" class="connection-status" aria-live="polite">
-                {move || status_message.get()}
+                {move || connection_status_message(&status.get())}
             </p>
 
             <p class="connection-footer">
