@@ -1,0 +1,36 @@
+#![allow(non_snake_case)]
+
+#[cfg(not(target_arch = "wasm32"))]
+mod native_render_tests {
+    use leptos::prelude::RenderHtml;
+    use sql_intelliscan_ui::app::ConnectionTestView;
+
+    #[test]
+    fn GivenConnectionTestView_WhenRenderedToHtml_ThenConnectionForm_ShouldBePresent() {
+        let html = ConnectionTestView().to_html();
+
+        assert!(html.contains("<h1 id=\"connection-title\">SQL Intelliscan</h1>"));
+        assert!(html.contains("id=\"connection-form\""));
+        assert!(html.contains("id=\"connection-submit\""));
+        assert!(html.contains("id=\"connection-status\""));
+    }
+}
+
+#[test]
+fn GivenConnectionTestViewSource_WhenReviewed_ThenServiceBoundary_ShouldBeRespected() {
+    let source = include_str!("../../src/components/connection_test/connection_test_view.rs");
+
+    assert!(source.contains("test_connection(request)"));
+    assert!(source.contains("ConnectionTestStatus::Idle"));
+    assert!(source.contains("ConnectionTestStatus::Loading"));
+    assert!(source.contains("ConnectionTestStatus::Success"));
+    assert!(source.contains("ConnectionTestStatus::Error"));
+    assert!(!source.contains("invoke("));
+    assert!(!source.contains("ConnectionTestRequest {"));
+    assert!(!source.contains("connection_string"));
+    assert!(!source.contains("connectionString"));
+    assert!(!source.contains("localStorage"));
+    assert!(!source.contains("sessionStorage"));
+    assert!(!source.contains("println!"));
+    assert!(!source.contains("dbg!"));
+}
