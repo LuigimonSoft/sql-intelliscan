@@ -121,14 +121,15 @@ async fn GivenAppComponent_WhenConnectionFormIsSubmitted_ThenStatus_ShouldRender
     button.click();
     flush_ui_updates().await;
 
-    let status = root
-        .query_selector("#connection-status")
+    let feedback = root
+        .query_selector("#connection-feedback")
         .expect("selector should not fail")
         .and_then(|element| element.text_content())
-        .expect("status should expose text");
+        .expect("feedback should expose text");
 
-    assert!(status.contains("Tauri backend is not available."));
-    assert!(!status.contains("StrongPassword123"));
+    assert!(feedback.contains("An unexpected error occurred while testing the connection."));
+    assert!(!feedback.contains("Tauri backend is not available."));
+    assert!(!feedback.contains("StrongPassword123"));
     assert_eq!(password.type_(), "password");
 }
 

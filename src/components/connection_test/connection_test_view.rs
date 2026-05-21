@@ -1,6 +1,7 @@
-use crate::components::connection_test::ConnectionForm;
+use crate::components::connection_test::{ConnectionForm, ConnectionTestFeedback};
 #[cfg(not(coverage))]
-use crate::models::{ConnectionTestRequest, ConnectionTestStatus};
+use crate::models::ConnectionTestRequest;
+use crate::models::ConnectionTestStatus;
 #[cfg(not(coverage))]
 use crate::services::connection_service::test_connection;
 use leptos::prelude::*;
@@ -98,8 +99,7 @@ fn connection_status_message(status: &ConnectionTestStatus) -> String {
     match status {
         ConnectionTestStatus::Idle => String::new(),
         ConnectionTestStatus::Loading => "Testing SQL Server connection...".to_string(),
-        ConnectionTestStatus::Success(result) => result.message.clone(),
-        ConnectionTestStatus::Error(error) => error.message.clone(),
+        ConnectionTestStatus::Success(_) | ConnectionTestStatus::Error(_) => String::new(),
     }
 }
 
@@ -244,6 +244,8 @@ pub fn ConnectionTestView() -> impl IntoView {
 
             <ConnectionForm on_submit=handle_submit is_loading=is_loading />
 
+            <ConnectionTestFeedback status=status />
+
             <p id="connection-status" class="connection-status" aria-live="polite">
                 {move || connection_status_message(&status.get())}
             </p>
@@ -294,6 +296,8 @@ pub fn ConnectionTestView() -> impl IntoView {
             </section>
 
             <ConnectionForm on_submit=Callback::new(|_| {}) is_loading=false />
+
+            <ConnectionTestFeedback status=ConnectionTestStatus::Idle />
 
             <p id="connection-status" class="connection-status" aria-live="polite"></p>
         </main>
