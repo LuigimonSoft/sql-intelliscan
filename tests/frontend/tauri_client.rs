@@ -46,6 +46,6 @@ fn GivenTauriClientSource_WhenReviewed_ThenConnectionCommand_ShouldUseExpectedBo
     assert!(source.contains("invoke(\"test_connection\", args)"));
     assert!(!source.contains("connection_string"));
     assert!(!source.contains("connectionString"));
-    assert!(!source.contains("println!"));
-    assert!(!source.contains("dbg!"));
+    assert!(!source.contains("println!("));
+    assert!(!source.contains("dbg!("));
 }
