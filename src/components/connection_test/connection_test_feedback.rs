@@ -1,7 +1,7 @@
 use crate::models::{ConnectionTestError, ConnectionTestResult, ConnectionTestStatus};
 use leptos::prelude::*;
 
-fn safe_success_message(result: &ConnectionTestResult) -> &str {
+fn success_message_or_default(result: &ConnectionTestResult) -> &str {
     if result.message.trim().is_empty() {
         "Connection successful."
     } else {
@@ -56,7 +56,22 @@ pub fn ConnectionTestFeedback(#[prop(into)] status: Signal<ConnectionTestStatus>
             ConnectionTestStatus::Idle | ConnectionTestStatus::Loading => ().into_any(),
             ConnectionTestStatus::Success(result) => {
                 let metadata = metadata_items(&result);
-                let has_metadata = !metadata.is_empty();
+                let metadata_view = if metadata.is_empty() {
+                    ().into_any()
+                } else {
+                    view! {
+                        <dl class="feedback-metadata">
+                            {metadata.into_iter().map(|(label, value)| {
+                                view! {
+                                    <div class="feedback-row">
+                                        <dt>{label}</dt>
+                                        <dd>{value}</dd>
+                                    </div>
+                                }
+                            }).collect_view()}
+                        </dl>
+                    }.into_any()
+                };
 
                 view! {
                     <section
@@ -65,19 +80,8 @@ pub fn ConnectionTestFeedback(#[prop(into)] status: Signal<ConnectionTestStatus>
                         aria-live="polite"
                         aria-label="Connection test result"
                     >
-                        <strong class="feedback-title">{safe_success_message(&result).to_string()}</strong>
-                        <Show when=move || has_metadata>
-                            <dl class="feedback-metadata">
-                                {metadata.clone().into_iter().map(|(label, value)| {
-                                    view! {
-                                        <div class="feedback-row">
-                                            <dt>{label}</dt>
-                                            <dd>{value}</dd>
-                                        </div>
-                                    }
-                                }).collect_view()}
-                            </dl>
-                        </Show>
+                        <strong class="feedback-title">{success_message_or_default(&result).to_string()}</strong>
+                        {metadata_view}
                     </section>
                 }.into_any()
             }
@@ -105,29 +109,43 @@ pub fn ConnectionTestFeedback(#[prop(into)] status: Signal<ConnectionTestStatus>
             ConnectionTestStatus::Idle | ConnectionTestStatus::Loading => ().into_any(),
             ConnectionTestStatus::Success(result) => {
                 let metadata = metadata_items(&result);
-                let has_metadata = !metadata.is_empty();
+                let metadata_view = if metadata.is_empty() {
+                    ().into_any()
+                } else {
+                    view! {
+                        <dl class="feedback-metadata">
+                            {metadata.into_iter().map(|(label, value)| {
+                                view! {
+                                    <div class="feedback-row">
+                                        <dt>{label}</dt>
+                                        <dd>{value}</dd>
+                                    </div>
+                                }
+                            }).collect_view()}
+                        </dl>
+                    }.into_any()
+                };
 
                 view! {
-                    <section id="connection-feedback" class="connection-feedback success" aria-live="polite">
-                        <strong class="feedback-title">{safe_success_message(&result).to_string()}</strong>
-                        <Show when=move || has_metadata>
-                            <dl class="feedback-metadata">
-                                {metadata.clone().into_iter().map(|(label, value)| {
-                                    view! {
-                                        <div class="feedback-row">
-                                            <dt>{label}</dt>
-                                            <dd>{value}</dd>
-                                        </div>
-                                    }
-                                }).collect_view()}
-                            </dl>
-                        </Show>
+                    <section
+                        id="connection-feedback"
+                        class="connection-feedback success"
+                        aria-live="polite"
+                        aria-label="Connection test result"
+                    >
+                        <strong class="feedback-title">{success_message_or_default(&result).to_string()}</strong>
+                        {metadata_view}
                     </section>
                 }.into_any()
             }
             ConnectionTestStatus::Error(error) => {
                 view! {
-                    <section id="connection-feedback" class="connection-feedback error" aria-live="polite">
+                    <section
+                        id="connection-feedback"
+                        class="connection-feedback error"
+                        aria-live="polite"
+                        aria-label="Connection test result"
+                    >
                         <strong class="feedback-title">{friendly_error_message(&error)}</strong>
                     </section>
                 }.into_any()

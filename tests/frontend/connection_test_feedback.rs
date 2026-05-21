@@ -28,6 +28,7 @@ mod native_render_tests {
         let html = render_feedback(ConnectionTestStatus::Success(successful_result()));
 
         assert!(html.contains("id=\"connection-feedback\""));
+        assert!(html.contains("aria-label=\"Connection test result\""));
         assert!(html.contains("Connection successful."));
         assert!(html.contains("Database"));
         assert!(html.contains("master"));
@@ -61,6 +62,7 @@ mod native_render_tests {
             message: "Login failed for user sa; Password=SuperSecret".to_string(),
         }));
 
+        assert!(html.contains("aria-label=\"Connection test result\""));
         assert!(html.contains("Authentication failed. Please verify your credentials."));
         assert!(!html.contains("SuperSecret"));
         assert!(!html.contains("Login failed for user"));
