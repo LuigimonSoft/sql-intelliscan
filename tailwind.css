@@ -730,6 +730,59 @@ html.light .connection-error {
   transition: color 0.2s;
 }
 
+.connection-feedback {
+  width: min(100%, 384px);
+  margin-top: 12px;
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--surface);
+  backdrop-filter: blur(20px) saturate(150%);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.08), 0 3px 14px rgba(0, 0, 0, 0.22);
+}
+
+.connection-feedback.success {
+  border-color: rgba(34, 197, 94, 0.38);
+}
+
+.connection-feedback.error {
+  border-color: rgba(245, 158, 11, 0.42);
+}
+
+.feedback-title {
+  display: block;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.feedback-metadata {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.feedback-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.42fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.feedback-row dt {
+  color: var(--text3);
+  font-size: 11px;
+}
+
+.feedback-row dd {
+  min-width: 0;
+  color: var(--text2);
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .connection-footer {
   margin-top: 16px;
   color: var(--text4);

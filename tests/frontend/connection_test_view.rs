@@ -25,6 +25,7 @@ fn GivenConnectionTestViewSource_WhenReviewed_ThenServiceBoundary_ShouldBeRespec
     assert!(source.contains("ConnectionTestStatus::Loading"));
     assert!(source.contains("ConnectionTestStatus::Success"));
     assert!(source.contains("ConnectionTestStatus::Error"));
+    assert!(source.contains("ConnectionTestFeedback"));
     assert!(source.contains("status.get_untracked()"));
     assert!(source.contains("is_loading"));
     assert!(!source.contains("invoke("));
