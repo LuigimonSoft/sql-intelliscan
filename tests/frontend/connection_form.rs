@@ -282,6 +282,17 @@ fn GivenConnectionFormSource_WhenReviewed_ThenComponent_ShouldNotUseUnsafeBounda
     assert!(source.contains("disabled=move || is_loading.get()"));
 }
 
+#[test]
+fn GivenConnectionFormSource_WhenReviewed_ThenPassword_ShouldOnlyRenderAsFormInput() {
+    let source = include_str!("../../src/components/connection_test/connection_form.rs");
+
+    assert!(source.contains("id=\"connection-password\""));
+    assert!(source.contains("name=\"password\""));
+    assert!(source.contains("type=move || if show_password.get()"));
+    assert!(!source.contains("ConnectionTestFeedback"));
+    assert!(!source.contains("connection-status"));
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 mod native_render_tests {
     use leptos::prelude::*;
@@ -451,5 +462,51 @@ mod wasm_render_tests {
             .expect("submit should be a button");
 
         assert!(button.disabled());
+    }
+
+    #[wasm_bindgen_test]
+    fn GivenInvalidConnectionForm_WhenSubmitted_ThenRequest_ShouldNotBeEmittedToParent() {
+        console_error_panic_hook::set_once();
+
+        let root = test_root();
+        let submitted_request = Arc::new(Mutex::new(None));
+        let request_sink = Arc::clone(&submitted_request);
+
+        mount_to(
+            root.clone()
+                .dyn_into::<HtmlElement>()
+                .expect("test root should be an html element"),
+            move || {
+                view! {
+                    <sql_intelliscan_ui::app::ConnectionForm on_submit=Callback::new(move |request| {
+                        *request_sink.lock().expect("request lock should not be poisoned") = Some(request);
+                    }) is_loading=false />
+                }
+            },
+        )
+        .forget();
+
+        let host = root
+            .query_selector("#connection-host")
+            .expect("selector should not fail")
+            .expect("host input should exist")
+            .dyn_into::<HtmlInputElement>()
+            .expect("host should be an input");
+        host.set_value(" ");
+        host.dispatch_event(&Event::new("input").expect("input event should be created"))
+            .expect("input event should dispatch");
+
+        let button = root
+            .query_selector("#connection-submit")
+            .expect("selector should not fail")
+            .expect("submit button should exist")
+            .dyn_into::<HtmlButtonElement>()
+            .expect("submit should be a button");
+        button.click();
+
+        assert!(submitted_request
+            .lock()
+            .expect("request lock should not be poisoned")
+            .is_none());
     }
 }

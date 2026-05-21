@@ -37,3 +37,27 @@ fn GivenConnectionTestViewSource_WhenReviewed_ThenServiceBoundary_ShouldBeRespec
     assert!(!source.contains("println!"));
     assert!(!source.contains("dbg!"));
 }
+
+#[test]
+fn GivenConnectionTestViewSource_WhenReviewed_ThenLoadingAndRetryFlow_ShouldBeExplicit() {
+    let source = include_str!("../../src/components/connection_test/connection_test_view.rs");
+
+    assert!(source.contains("if matches!(status.get_untracked(), ConnectionTestStatus::Loading)"));
+    assert!(source.contains("set_status.set(ConnectionTestStatus::Loading);"));
+    assert!(source.contains("spawn_connection_test(request, set_status);"));
+    assert!(source.contains("ConnectionTestStatus::Success(result)"));
+    assert!(source.contains("ConnectionTestStatus::Error(error)"));
+    assert!(source.contains("Signal::derive(move || matches!(status.get(), ConnectionTestStatus::Loading))"));
+}
+
+#[test]
+fn GivenConnectionTestViewSource_WhenReviewed_ThenSensitiveData_ShouldNotBeRenderedOrPersisted() {
+    let source = include_str!("../../src/components/connection_test/connection_test_view.rs");
+
+    assert!(!source.contains("password"));
+    assert!(!source.contains("connection_string"));
+    assert!(!source.contains("connectionString"));
+    assert!(!source.contains("session_storage"));
+    assert!(!source.contains("stack_trace"));
+    assert!(!source.contains("backtrace"));
+}
