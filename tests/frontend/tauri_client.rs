@@ -36,3 +36,16 @@ fn GivenPayload_WhenTestConnectionCommandIsInvoked_ThenMockedResponse_ShouldMatc
     assert!(response.success);
     assert_eq!(response.database.as_deref(), Some("master"));
 }
+
+#[test]
+fn GivenTauriClientSource_WhenReviewed_ThenConnectionCommand_ShouldUseExpectedBoundary() {
+    let source = include_str!("../../src/services/tauri_client.rs");
+
+    assert!(source.contains("pub struct ConnectionTestArgs<'a>"));
+    assert!(source.contains("pub request: &'a ConnectionTestRequest"));
+    assert!(source.contains("invoke(\"test_connection\", args)"));
+    assert!(!source.contains("connection_string"));
+    assert!(!source.contains("connectionString"));
+    assert!(!source.contains("println!("));
+    assert!(!source.contains("dbg!("));
+}
