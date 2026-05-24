@@ -18,10 +18,12 @@ The default filter is `info`. It can be overridden with `RUST_LOG`, for example:
 
 ```bash
 RUST_LOG=debug
-RUST_LOG=sql_intelliscan=debug,warn
+RUST_LOG=sql_intelliscan_lib::logging=debug,warn
 ```
 
-Invalid filter values fall back to `info`.
+By default, `tracing` uses the Rust module path as the event target, such as `sql_intelliscan_lib::logging::logging_config`. Use `target: "sql_intelliscan::..."` in macros when you want logs to match the stable application targets shown below.
+
+Invalid filter values fall back to `info`. If another embedded component has already installed a global subscriber, backend startup treats that as non-fatal and continues.
 
 ## Conventions
 

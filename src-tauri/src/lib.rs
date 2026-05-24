@@ -22,8 +22,8 @@ pub use dependency_wiring::{
     build_app_state, greet_user, shared_app_state, validate_sql_server_connection,
 };
 pub use logging::{
-    build_log_filter_from_env_value, init_logging, logging_stack_decision, DEFAULT_LOG_FILTER,
-    LOG_FILTER_ENV_VAR,
+    build_log_filter_from_env_value, init_logging, logging_stack_decision, LoggingInitError,
+    DEFAULT_LOG_FILTER, LOG_FILTER_ENV_VAR,
 };
 pub use sql_intelliscan_services::errors::ServiceError;
 pub use sql_intelliscan_services::models;
@@ -57,7 +57,9 @@ pub fn reset_run_hooks() {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    init_logging().expect("backend logging should initialize once");
+    if let Err(error) = init_logging() {
+        eprintln!("{error}");
+    }
 
     let (builder_factory, runner) = *run_hooks(DEFAULT_BUILDER_FACTORY, DEFAULT_RUNNER)
         .lock()
