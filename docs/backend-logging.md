@@ -32,7 +32,7 @@ Use structured fields and stable targets:
 ```rust
 use tracing::{debug, error, info, warn};
 
-info!(target: "sql_intelliscan::startup", "Application startup completed");
+info!(target: "sql_intelliscan::startup", "Application startup started");
 debug!(target: "sql_intelliscan::connection", host = %safe_host, port = port, "Starting connection validation");
 warn!(target: "sql_intelliscan::connection", error_code = "VALIDATION_FAILED", "Connection validation failed");
 error!(target: "sql_intelliscan::repository", error_code = "CONNECTION_FAILED", "Repository operation failed");

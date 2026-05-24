@@ -1,8 +1,33 @@
 #![allow(non_snake_case)]
 
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Mutex, OnceLock};
 
-use sql_intelliscan_lib::{build_app, greet, reset_run_hooks, run, run_with, set_run_hooks};
+use sql_intelliscan_lib::{
+    build_app, greet, reset_run_hooks, run, run_startup_with, run_with, set_run_hooks,
+    StartupLogEvent,
+};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StartupStep {
+    LoggingInitialized,
+    StartupLogged(StartupLogEvent),
+    BuilderCreated,
+    RunnerCalled,
+}
+
+static STARTUP_STEPS: OnceLock<Mutex<Vec<StartupStep>>> = OnceLock::new();
+
+fn startup_steps() -> &'static Mutex<Vec<StartupStep>> {
+    STARTUP_STEPS.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+fn record_startup_step(step: StartupStep) {
+    startup_steps()
+        .lock()
+        .expect("startup steps lock poisoned")
+        .push(step);
+}
 
 #[test]
 fn GivenValidName_WhenGreetIsCalled_ThenMessage_ShouldIncludeNameAndBackendOrigin() {
@@ -64,4 +89,58 @@ fn GivenRunHooksOverride_WhenRunIsCalled_ThenBackend_ShouldUseInjectedBuilderAnd
     assert!(RUNNER_CALLED.load(Ordering::SeqCst));
 
     reset_run_hooks();
+}
+
+#[test]
+fn GivenBackendStartup_WhenRunStartupExecutes_ThenLogging_ShouldInitializeBeforeAppWiring() {
+    fn fake_logging_initializer() -> Result<(), sql_intelliscan_lib::LoggingInitError> {
+        record_startup_step(StartupStep::LoggingInitialized);
+
+        Ok(())
+    }
+
+    fn fake_builder() -> tauri::Builder<tauri::Wry> {
+        record_startup_step(StartupStep::BuilderCreated);
+
+        tauri::Builder::default()
+    }
+
+    fn fake_runner(_builder: tauri::Builder<tauri::Wry>) {
+        record_startup_step(StartupStep::RunnerCalled);
+    }
+
+    fn fake_startup_logger(event: StartupLogEvent) {
+        record_startup_step(StartupStep::StartupLogged(event));
+    }
+
+    startup_steps()
+        .lock()
+        .expect("startup steps lock poisoned")
+        .clear();
+
+    run_startup_with(
+        fake_logging_initializer,
+        fake_builder,
+        fake_runner,
+        fake_startup_logger,
+    )
+    .expect("startup should complete");
+
+    let steps = startup_steps()
+        .lock()
+        .expect("startup steps lock poisoned")
+        .clone();
+
+    assert_eq!(
+        steps,
+        vec![
+            StartupStep::LoggingInitialized,
+            StartupStep::StartupLogged(StartupLogEvent::ApplicationStartupStarted),
+            StartupStep::StartupLogged(StartupLogEvent::LoggingInitialized),
+            StartupStep::StartupLogged(StartupLogEvent::ApplicationStateBuildStarted),
+            StartupStep::BuilderCreated,
+            StartupStep::StartupLogged(StartupLogEvent::TauriApplicationStarting),
+            StartupStep::RunnerCalled,
+        ]
+    );
 }
