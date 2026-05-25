@@ -34,6 +34,14 @@ const DEFAULT_BUILDER_FACTORY: BuilderFactory = build_app;
 const DEFAULT_RUNNER: Runner = run_builder;
 const DEFAULT_BACKEND_RUNNER: BackendRunner = run;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StartupLogEvent {
+    ApplicationStartupStarted,
+    LoggingInitialized,
+    ApplicationStateBuildStarted,
+    TauriApplicationStarting,
+}
+
 pub fn greet(name: &str) -> Result<String, ServiceError> {
     greet_user(name)
 }
@@ -57,15 +65,69 @@ pub fn reset_run_hooks() {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    if let Err(error) = init_logging() {
+    if let Err(error) = try_run() {
         eprintln!("{error}");
     }
+}
 
+pub fn try_run() -> Result<(), LoggingInitError> {
     let (builder_factory, runner) = *run_hooks(DEFAULT_BUILDER_FACTORY, DEFAULT_RUNNER)
         .lock()
         .expect("run hooks lock poisoned");
 
-    run_with(builder_factory, runner);
+    run_startup_with(init_logging, builder_factory, runner, log_startup_event)
+}
+
+pub fn run_startup_with<LoggingInitializer, BuilderFactory, Runner, StartupLogger>(
+    mut logging_initializer: LoggingInitializer,
+    builder_factory: BuilderFactory,
+    runner: Runner,
+    mut startup_logger: StartupLogger,
+) -> Result<(), LoggingInitError>
+where
+    LoggingInitializer: FnMut() -> Result<(), LoggingInitError>,
+    BuilderFactory: FnOnce() -> tauri::Builder<tauri::Wry>,
+    Runner: FnOnce(tauri::Builder<tauri::Wry>),
+    StartupLogger: FnMut(StartupLogEvent),
+{
+    logging_initializer()?;
+
+    startup_logger(StartupLogEvent::ApplicationStartupStarted);
+    startup_logger(StartupLogEvent::LoggingInitialized);
+    startup_logger(StartupLogEvent::ApplicationStateBuildStarted);
+
+    let builder = builder_factory();
+
+    startup_logger(StartupLogEvent::TauriApplicationStarting);
+    runner(builder);
+
+    Ok(())
+}
+
+pub fn log_startup_event(event: StartupLogEvent) {
+    match event {
+        StartupLogEvent::ApplicationStartupStarted => {
+            tracing::info!(
+                target: "sql_intelliscan::startup",
+                "Application startup started"
+            );
+        }
+        StartupLogEvent::LoggingInitialized => {
+            tracing::info!(target: "sql_intelliscan::startup", "Logging initialized");
+        }
+        StartupLogEvent::ApplicationStateBuildStarted => {
+            tracing::info!(
+                target: "sql_intelliscan::startup",
+                "Application state build started"
+            );
+        }
+        StartupLogEvent::TauriApplicationStarting => {
+            tracing::info!(
+                target: "sql_intelliscan::startup",
+                "Tauri application starting"
+            );
+        }
+    }
 }
 
 pub fn run_application(run_backend: fn()) {
