@@ -4649,6 +4649,8 @@ dependencies = [
  "serde-wasm-bindgen",
  "sql-intelliscan",
  "tauri",
+ "tracing",
+ "tracing-subscriber",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",

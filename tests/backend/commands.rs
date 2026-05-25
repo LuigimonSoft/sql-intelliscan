@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 
 use std::{
+    fmt,
     future::Future,
     pin::Pin,
     sync::{Arc, Mutex},
@@ -13,6 +14,79 @@ use sql_intelliscan_lib::{
     GreetingServicePort, ServiceError,
 };
 use tauri::Manager;
+use tracing::{
+    field::{Field, Visit},
+    Event, Subscriber,
+};
+use tracing_subscriber::{layer::Context, prelude::*, registry::LookupSpan, Layer};
+
+#[derive(Clone)]
+struct CapturedLogLayer {
+    events: Arc<Mutex<Vec<String>>>,
+}
+
+#[derive(Default)]
+struct CapturedLogVisitor {
+    fields: Vec<String>,
+}
+
+impl Visit for CapturedLogVisitor {
+    fn record_bool(&mut self, field: &Field, value: bool) {
+        self.fields.push(format!("{}={value}", field.name()));
+    }
+
+    fn record_u64(&mut self, field: &Field, value: u64) {
+        self.fields.push(format!("{}={value}", field.name()));
+    }
+
+    fn record_u128(&mut self, field: &Field, value: u128) {
+        self.fields.push(format!("{}={value}", field.name()));
+    }
+
+    fn record_str(&mut self, field: &Field, value: &str) {
+        self.fields.push(format!("{}={value}", field.name()));
+    }
+
+    fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
+        self.fields.push(format!("{}={value:?}", field.name()));
+    }
+}
+
+impl<S> Layer<S> for CapturedLogLayer
+where
+    S: Subscriber + for<'lookup> LookupSpan<'lookup>,
+{
+    fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, S>) {
+        let mut visitor = CapturedLogVisitor::default();
+        event.record(&mut visitor);
+
+        let mut log_entry = format!("target={}", event.metadata().target());
+        if !visitor.fields.is_empty() {
+            log_entry.push(' ');
+            log_entry.push_str(&visitor.fields.join(" "));
+        }
+
+        self.events
+            .lock()
+            .expect("captured log lock should not be poisoned")
+            .push(log_entry);
+    }
+}
+
+fn capture_logs<R>(operation: impl FnOnce() -> R) -> (R, Vec<String>) {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let subscriber = tracing_subscriber::registry().with(CapturedLogLayer {
+        events: events.clone(),
+    });
+
+    let result = tracing::subscriber::with_default(subscriber, operation);
+    let logs = events
+        .lock()
+        .expect("captured log lock should not be poisoned")
+        .clone();
+
+    (result, logs)
+}
 
 fn valid_connection_request() -> ConnectionTestRequest {
     ConnectionTestRequest {
@@ -72,6 +146,27 @@ fn GivenManagedState_WhenGreetCommandIsCalled_ThenResponse_ShouldWrapGreetingMes
 
     assert_eq!(result.message, "Greeting generated successfully");
     assert_eq!(result.data, "Hello, Ana! You've been greeted from Rust!");
+}
+
+#[test]
+fn GivenName_WhenGreetCommandRuns_ThenLogs_ShouldIncludeSafeLifecycleMetadata() {
+    let app_state = build_app_state().expect("app state should build");
+    let app = tauri::test::mock_builder()
+        .manage(app_state)
+        .build(tauri::test::mock_context(tauri::test::noop_assets()))
+        .expect("mock app should build");
+
+    let (result, logs) = capture_logs(|| greet_command(app.state(), "Sensitive Name"));
+
+    assert_eq!(result.message, "Greeting generated successfully");
+
+    let logs = logs.join("\n");
+    assert!(logs.contains("target=sql_intelliscan::commands"));
+    assert!(logs.contains("command=greet_command"));
+    assert!(logs.contains("message=Tauri command started"));
+    assert!(logs.contains("message=Tauri command completed successfully"));
+    assert!(logs.contains("elapsed_ms="));
+    assert!(!logs.contains("Sensitive Name"));
 }
 
 #[test]
@@ -185,6 +280,68 @@ fn GivenSuccessfulServiceResult_WhenTestConnectionCommandRuns_ThenResponse_Shoul
     assert_eq!(response.database.as_deref(), Some("master"));
     assert_eq!(response.latency_ms, Some(42));
     assert_eq!(response.server_version, None);
+}
+
+#[test]
+fn GivenConnectionRequest_WhenTestConnectionCommandSucceeds_ThenLogs_ShouldIncludeSafeLifecycleMetadata(
+) {
+    let app_state = AppState::new(
+        Arc::new(MockGreetingService),
+        Arc::new(SuccessfulConnectionService),
+    );
+
+    let (response, logs) = capture_logs(|| {
+        tauri::async_runtime::block_on(test_connection_with_state(
+            &app_state,
+            valid_connection_request(),
+        ))
+    });
+
+    response.expect("connection test should succeed");
+
+    let logs = logs.join("\n");
+    assert!(logs.contains("target=sql_intelliscan::commands"));
+    assert!(logs.contains("command=test_connection"));
+    assert!(logs.contains("message=Tauri command started"));
+    assert!(logs.contains("message=Received connection test request metadata"));
+    assert!(logs.contains("port=1433"));
+    assert!(logs.contains("timeout_seconds=30"));
+    assert!(logs.contains("encrypt=true"));
+    assert!(logs.contains("trust_server_certificate=true"));
+    assert!(logs.contains("message=Tauri command completed successfully"));
+    assert!(logs.contains("elapsed_ms="));
+    assert!(!logs.contains("StrongPassword123"));
+    assert!(!logs.contains("Password="));
+    assert!(!logs.contains("User Id="));
+    assert!(!logs.contains("Server=localhost"));
+    assert!(!logs.contains("username"));
+}
+
+#[test]
+fn GivenConnectionRequestWithSecret_WhenConnectionCommandFails_ThenLogs_ShouldIncludeOnlySafeErrorCode(
+) {
+    let app_state = AppState::new(Arc::new(MockGreetingService), Arc::new(MockConnectionService));
+
+    let (result, logs) = capture_logs(|| {
+        tauri::async_runtime::block_on(test_connection_with_state(
+            &app_state,
+            valid_connection_request(),
+        ))
+    });
+
+    let error = result.expect_err("expected service error");
+    assert_eq!(error.code, "CONNECTION_FAILED");
+
+    let logs = logs.join("\n");
+    assert!(logs.contains("command=test_connection"));
+    assert!(logs.contains("message=Tauri command failed"));
+    assert!(logs.contains("error_code=CONNECTION_FAILED"));
+    assert!(logs.contains("elapsed_ms="));
+    assert!(!logs.contains("StrongPassword123"));
+    assert!(!logs.contains("Password="));
+    assert!(!logs.contains("User Id="));
+    assert!(!logs.contains("Server=localhost"));
+    assert!(!logs.contains("SourceUnavailable"));
 }
 
 #[derive(Default)]
