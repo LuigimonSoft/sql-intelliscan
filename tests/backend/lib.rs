@@ -158,7 +158,7 @@ fn GivenCapturedStartupState_WhenRunStartupExecutes_ThenClosures_ShouldBeAccepte
 
             Ok(())
         },
-        || tauri::Builder::default(),
+        tauri::Builder::default,
         |_builder| {
             runner_called.set(true);
         },
