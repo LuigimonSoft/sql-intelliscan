@@ -65,22 +65,31 @@ pub fn reset_run_hooks() {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    if let Err(error) = try_run() {
+        eprintln!("{error}");
+    }
+}
+
+pub fn try_run() -> Result<(), LoggingInitError> {
     let (builder_factory, runner) = *run_hooks(DEFAULT_BUILDER_FACTORY, DEFAULT_RUNNER)
         .lock()
         .expect("run hooks lock poisoned");
 
-    if let Err(error) = run_startup_with(init_logging, builder_factory, runner, log_startup_event) {
-        eprintln!("{error}");
-        std::process::exit(1);
-    }
+    run_startup_with(init_logging, builder_factory, runner, log_startup_event)
 }
 
-pub fn run_startup_with(
-    logging_initializer: fn() -> Result<(), LoggingInitError>,
-    builder_factory: fn() -> tauri::Builder<tauri::Wry>,
-    runner: fn(tauri::Builder<tauri::Wry>),
-    startup_logger: fn(StartupLogEvent),
-) -> Result<(), LoggingInitError> {
+pub fn run_startup_with<LoggingInitializer, BuilderFactory, Runner, StartupLogger>(
+    mut logging_initializer: LoggingInitializer,
+    builder_factory: BuilderFactory,
+    runner: Runner,
+    mut startup_logger: StartupLogger,
+) -> Result<(), LoggingInitError>
+where
+    LoggingInitializer: FnMut() -> Result<(), LoggingInitError>,
+    BuilderFactory: FnOnce() -> tauri::Builder<tauri::Wry>,
+    Runner: FnOnce(tauri::Builder<tauri::Wry>),
+    StartupLogger: FnMut(StartupLogEvent),
+{
     logging_initializer()?;
 
     startup_logger(StartupLogEvent::ApplicationStartupStarted);

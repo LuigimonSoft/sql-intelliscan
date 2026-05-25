@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 
+use std::cell::{Cell, RefCell};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 
@@ -141,6 +142,41 @@ fn GivenBackendStartup_WhenRunStartupExecutes_ThenLogging_ShouldInitializeBefore
             StartupStep::BuilderCreated,
             StartupStep::StartupLogged(StartupLogEvent::TauriApplicationStarting),
             StartupStep::RunnerCalled,
+        ]
+    );
+}
+
+#[test]
+fn GivenCapturedStartupState_WhenRunStartupExecutes_ThenClosures_ShouldBeAcceptedWithoutStatics() {
+    let logging_initialized = Cell::new(false);
+    let runner_called = Cell::new(false);
+    let startup_events = RefCell::new(Vec::new());
+
+    run_startup_with(
+        || {
+            logging_initialized.set(true);
+
+            Ok(())
+        },
+        || tauri::Builder::default(),
+        |_builder| {
+            runner_called.set(true);
+        },
+        |event| {
+            startup_events.borrow_mut().push(event);
+        },
+    )
+    .expect("startup should complete with captured closures");
+
+    assert!(logging_initialized.get());
+    assert!(runner_called.get());
+    assert_eq!(
+        startup_events.into_inner(),
+        vec![
+            StartupLogEvent::ApplicationStartupStarted,
+            StartupLogEvent::LoggingInitialized,
+            StartupLogEvent::ApplicationStateBuildStarted,
+            StartupLogEvent::TauriApplicationStarting,
         ]
     );
 }
