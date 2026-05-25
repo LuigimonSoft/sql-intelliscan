@@ -154,14 +154,14 @@ fn GivenServiceErrors_WhenSafeCategoryIsRequested_ThenService_ShouldReturnNonSen
             "INVALID_AUDIT_REQUEST",
         ),
         (
-            ServiceError::InvalidConfiguration("Password=secret"),
+            ServiceError::InvalidConfiguration("sensitive input marker"),
             "INVALID_CONFIGURATION",
         ),
         (ServiceError::InvalidName, "INVALID_NAME"),
         (ServiceError::ConnectionTimeout, "CONNECTION_TIMEOUT"),
         (ServiceError::QueryExecutionFailed, "QUERY_EXECUTION_FAILED"),
         (
-            ServiceError::ResultMappingFailed("Password=secret"),
+            ServiceError::ResultMappingFailed("sensitive input marker"),
             "RESULT_MAPPING_FAILED",
         ),
         (ServiceError::SourceUnavailable, "SOURCE_UNAVAILABLE"),
@@ -169,7 +169,7 @@ fn GivenServiceErrors_WhenSafeCategoryIsRequested_ThenService_ShouldReturnNonSen
 
     for (error, expected_category) in cases {
         assert_eq!(error.safe_category(), expected_category);
-        assert!(!error.safe_category().contains("secret"));
+        assert!(!error.safe_category().contains("sensitive input marker"));
     }
 }
 
