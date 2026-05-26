@@ -1,10 +1,17 @@
+use std::time::Instant;
+
 use mssqlrust::{dataset::DataValue, execute_scalar, infrastructure::mssql::MssqlConfig, Command};
+use tracing::{debug, info, warn};
 
 use crate::{
     contracts::ConnectionRepository,
     errors::{RepositoryError, RepositoryResult},
     models::SqlServerConnectionConfig,
 };
+
+const SQL_SERVER_REPOSITORY_TARGET: &str = "sql_intelliscan::repository::sql_server";
+const CONNECTION_REPOSITORY_NAME: &str = "SqlServerConnectionRepository";
+const VALIDATE_CONNECTION_OPERATION: &str = "validate_connection";
 
 enum MssqlScalarClient {
     Default,
@@ -128,22 +135,83 @@ impl SqlServerConnectionRepository {
 
 impl ConnectionRepository for SqlServerConnectionRepository {
     async fn validate_connection(&self) -> RepositoryResult<bool> {
-        let scalar = self.execute_validation_query().await?;
+        let started_at = Instant::now();
 
-        Self::map_validation_result(scalar)
+        info!(
+            target: SQL_SERVER_REPOSITORY_TARGET,
+            repository = CONNECTION_REPOSITORY_NAME,
+            operation = VALIDATE_CONNECTION_OPERATION,
+            "Repository operation started"
+        );
+
+        debug!(
+            target: SQL_SERVER_REPOSITORY_TARGET,
+            repository = CONNECTION_REPOSITORY_NAME,
+            operation = VALIDATE_CONNECTION_OPERATION,
+            port = self.config.port,
+            encrypt = self.config.encrypt,
+            trust_server_certificate = self.config.trust_server_certificate,
+            timeout_seconds = self.config.connection_timeout_seconds,
+            "SQL Server connection metadata"
+        );
+
+        let result = async {
+            let scalar = self.execute_validation_query().await?;
+
+            Self::map_validation_result(scalar)
+        }
+        .await;
+
+        match result {
+            Ok(is_valid) => {
+                info!(
+                    target: SQL_SERVER_REPOSITORY_TARGET,
+                    repository = CONNECTION_REPOSITORY_NAME,
+                    operation = VALIDATE_CONNECTION_OPERATION,
+                    elapsed_ms = started_at.elapsed().as_millis(),
+                    "Repository operation completed successfully"
+                );
+
+                Ok(is_valid)
+            }
+            Err(error) => {
+                warn!(
+                    target: SQL_SERVER_REPOSITORY_TARGET,
+                    repository = CONNECTION_REPOSITORY_NAME,
+                    operation = VALIDATE_CONNECTION_OPERATION,
+                    error_category = error.safe_category(),
+                    elapsed_ms = started_at.elapsed().as_millis(),
+                    "Repository operation failed"
+                );
+
+                Err(error)
+            }
+        }
     }
 }
 
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod tests {
+    use std::{
+        collections::BTreeMap,
+        sync::{Arc, Mutex},
+    };
+
     use mssqlrust::{dataset::DataValue, infrastructure::mssql::MssqlConfig, Command};
+    use tracing::{
+        field::{Field, Visit},
+        span::{Attributes, Id, Record},
+        Event, Level, Metadata, Subscriber,
+    };
 
     use crate::{
         contracts::ConnectionRepository, errors::RepositoryError, models::SqlServerConnectionConfig,
     };
 
-    use super::{SqlServerConnectionRepository, TestMssqlScalarClient};
+    use super::{
+        SqlServerConnectionRepository, TestMssqlScalarClient, SQL_SERVER_REPOSITORY_TARGET,
+    };
 
     struct SuccessClient;
 
@@ -191,6 +259,112 @@ mod tests {
         ) -> Result<Option<DataValue>, String> {
             Err("server returned secret connection string details".to_owned())
         }
+    }
+
+    #[derive(Clone, Debug)]
+    struct CapturedEvent {
+        target: String,
+        level: Level,
+        fields: BTreeMap<String, String>,
+    }
+
+    #[derive(Default)]
+    struct CapturingSubscriber {
+        events: Mutex<Vec<CapturedEvent>>,
+    }
+
+    impl CapturingSubscriber {
+        fn captured_events(&self) -> Vec<CapturedEvent> {
+            self.events.lock().expect("events lock").clone()
+        }
+    }
+
+    impl Subscriber for CapturingSubscriber {
+        fn enabled(&self, _metadata: &Metadata<'_>) -> bool {
+            true
+        }
+
+        fn new_span(&self, _span: &Attributes<'_>) -> Id {
+            Id::from_u64(1)
+        }
+
+        fn record(&self, _span: &Id, _values: &Record<'_>) {}
+
+        fn record_follows_from(&self, _span: &Id, _follows: &Id) {}
+
+        fn event(&self, event: &Event<'_>) {
+            let metadata = event.metadata();
+            let mut visitor = EventFieldVisitor::default();
+
+            event.record(&mut visitor);
+
+            self.events
+                .lock()
+                .expect("events lock")
+                .push(CapturedEvent {
+                    target: metadata.target().to_owned(),
+                    level: *metadata.level(),
+                    fields: visitor.fields,
+                });
+        }
+
+        fn enter(&self, _span: &Id) {}
+
+        fn exit(&self, _span: &Id) {}
+    }
+
+    #[derive(Default)]
+    struct EventFieldVisitor {
+        fields: BTreeMap<String, String>,
+    }
+
+    impl Visit for EventFieldVisitor {
+        fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
+            self.fields
+                .insert(field.name().to_owned(), format!("{value:?}"));
+        }
+
+        fn record_str(&mut self, field: &Field, value: &str) {
+            self.fields
+                .insert(field.name().to_owned(), value.to_owned());
+        }
+
+        fn record_bool(&mut self, field: &Field, value: bool) {
+            self.fields
+                .insert(field.name().to_owned(), value.to_string());
+        }
+
+        fn record_u64(&mut self, field: &Field, value: u64) {
+            self.fields
+                .insert(field.name().to_owned(), value.to_string());
+        }
+
+        fn record_u128(&mut self, field: &Field, value: u128) {
+            self.fields
+                .insert(field.name().to_owned(), value.to_string());
+        }
+    }
+
+    fn capture_events_while(action: impl FnOnce()) -> Vec<CapturedEvent> {
+        let subscriber = Arc::new(CapturingSubscriber::default());
+        let subscriber_ref = Arc::clone(&subscriber);
+
+        tracing::subscriber::with_default(subscriber, action);
+
+        subscriber_ref.captured_events()
+    }
+
+    fn joined_event_fields(events: &[CapturedEvent]) -> String {
+        events
+            .iter()
+            .flat_map(|event| {
+                event
+                    .fields
+                    .iter()
+                    .map(|(name, value)| format!("{name}={value}"))
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     fn build_config() -> SqlServerConnectionConfig {
@@ -277,6 +451,50 @@ mod tests {
     }
 
     #[test]
+    fn GivenMockClient_WhenValidationSucceeds_ThenRepository_ShouldEmitSafeOperationalLogs() {
+        let repository = SqlServerConnectionRepository::with_client(build_config(), SuccessClient);
+
+        let events = capture_events_while(|| {
+            let result =
+                futures::executor::block_on(ConnectionRepository::validate_connection(&repository));
+
+            assert_eq!(result, Ok(true));
+        });
+        let fields = joined_event_fields(&events);
+
+        assert!(events
+            .iter()
+            .any(|event| event.target == SQL_SERVER_REPOSITORY_TARGET
+                && event.level == Level::INFO
+                && event
+                    .fields
+                    .get("message")
+                    .is_some_and(|message| message.contains("Repository operation started"))));
+        assert!(events
+            .iter()
+            .any(|event| event.target == SQL_SERVER_REPOSITORY_TARGET
+                && event.level == Level::DEBUG
+                && event.fields.get("port").is_some_and(|port| port == "1433")
+                && event
+                    .fields
+                    .get("trust_server_certificate")
+                    .is_some_and(|trust| trust == "true")));
+        assert!(events
+            .iter()
+            .any(|event| event.target == SQL_SERVER_REPOSITORY_TARGET
+                && event.level == Level::INFO
+                && event.fields.contains_key("elapsed_ms")
+                && event.fields.get("message").is_some_and(
+                    |message| message.contains("Repository operation completed successfully")
+                )));
+        assert!(fields.contains("repository=SqlServerConnectionRepository"));
+        assert!(fields.contains("operation=validate_connection"));
+        assert!(!fields.contains("secret"));
+        assert!(!fields.contains("Password=secret"));
+        assert!(!fields.contains("User Id=sa"));
+    }
+
+    #[test]
     fn GivenUnexpectedScalarType_WhenValidationIsRequested_ThenRepository_ShouldMapError() {
         let repository =
             SqlServerConnectionRepository::with_client(build_config(), InvalidTypeClient);
@@ -322,6 +540,43 @@ mod tests {
                 "SQL Server validation query failed".to_owned()
             ))
         );
+    }
+
+    #[test]
+    fn GivenDriverFailureWithSensitiveDetails_WhenValidationFails_ThenRepository_ShouldEmitSafeFailureLog(
+    ) {
+        let repository =
+            SqlServerConnectionRepository::with_client(build_config(), GenericFailingClient);
+
+        let events = capture_events_while(|| {
+            let result =
+                futures::executor::block_on(ConnectionRepository::validate_connection(&repository));
+
+            assert_eq!(
+                result,
+                Err(RepositoryError::QueryExecutionFailed(
+                    "SQL Server validation query failed".to_owned()
+                ))
+            );
+        });
+        let fields = joined_event_fields(&events);
+
+        assert!(events
+            .iter()
+            .any(|event| event.target == SQL_SERVER_REPOSITORY_TARGET
+                && event.level == Level::WARN
+                && event.fields.contains_key("elapsed_ms")
+                && event
+                    .fields
+                    .get("error_category")
+                    .is_some_and(|category| category == "QUERY_VALIDATION_FAILED")
+                && event
+                    .fields
+                    .get("message")
+                    .is_some_and(|message| message.contains("Repository operation failed"))));
+        assert!(!fields.contains("secret connection string details"));
+        assert!(!fields.contains("Password=secret"));
+        assert!(!fields.contains("User Id=sa"));
     }
 
     #[test]
