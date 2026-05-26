@@ -37,6 +37,20 @@ impl From<DataAccessError> for ServiceError {
     }
 }
 
+impl ServiceError {
+    pub fn safe_category(&self) -> &'static str {
+        match self {
+            Self::InvalidAuditRequest(_) => "INVALID_AUDIT_REQUEST",
+            Self::InvalidConfiguration(_) => "INVALID_CONFIGURATION",
+            Self::InvalidName => "INVALID_NAME",
+            Self::ConnectionTimeout => "CONNECTION_TIMEOUT",
+            Self::QueryExecutionFailed => "QUERY_EXECUTION_FAILED",
+            Self::ResultMappingFailed(_) => "RESULT_MAPPING_FAILED",
+            Self::SourceUnavailable => "SOURCE_UNAVAILABLE",
+        }
+    }
+}
+
 fn is_timeout_reason(reason: &str) -> bool {
     let normalized = reason.to_ascii_lowercase();
 

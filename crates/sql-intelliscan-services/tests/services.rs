@@ -147,6 +147,33 @@ fn GivenRepositoryMappingFailure_WhenValidationIsRequested_ThenService_ShouldNor
 }
 
 #[test]
+fn GivenServiceErrors_WhenSafeCategoryIsRequested_ThenService_ShouldReturnNonSensitiveCategories() {
+    let cases = [
+        (
+            ServiceError::InvalidAuditRequest("request name is required"),
+            "INVALID_AUDIT_REQUEST",
+        ),
+        (
+            ServiceError::InvalidConfiguration("sensitive input marker"),
+            "INVALID_CONFIGURATION",
+        ),
+        (ServiceError::InvalidName, "INVALID_NAME"),
+        (ServiceError::ConnectionTimeout, "CONNECTION_TIMEOUT"),
+        (ServiceError::QueryExecutionFailed, "QUERY_EXECUTION_FAILED"),
+        (
+            ServiceError::ResultMappingFailed("sensitive input marker"),
+            "RESULT_MAPPING_FAILED",
+        ),
+        (ServiceError::SourceUnavailable, "SOURCE_UNAVAILABLE"),
+    ];
+
+    for (error, expected_category) in cases {
+        assert_eq!(error.safe_category(), expected_category);
+        assert!(!error.safe_category().contains("sensitive input marker"));
+    }
+}
+
+#[test]
 fn GivenRepositoryConfigurationFailure_WhenValidationIsRequested_ThenService_ShouldNormalizeError()
 {
     let service = ConnectionService::new(MockConnectionRepository::fails_with(
