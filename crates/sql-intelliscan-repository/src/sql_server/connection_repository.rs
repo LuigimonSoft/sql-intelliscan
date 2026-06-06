@@ -206,12 +206,16 @@ mod tests {
     };
 
     use crate::{
-        contracts::ConnectionRepository, errors::RepositoryError, models::SqlServerConnectionConfig,
+        contracts::ConnectionRepository,
+        errors::{RepositoryError, RepositoryResult},
+        models::SqlServerConnectionConfig,
     };
 
     use super::{
         SqlServerConnectionRepository, TestMssqlScalarClient, SQL_SERVER_REPOSITORY_TARGET,
     };
+
+    static LOG_CAPTURE_LOCK: Mutex<()> = Mutex::new(());
 
     struct SuccessClient;
 
@@ -346,12 +350,34 @@ mod tests {
     }
 
     fn capture_events_while(action: impl FnOnce()) -> Vec<CapturedEvent> {
+        let _capture_guard = LOG_CAPTURE_LOCK
+            .lock()
+            .expect("log capture lock should not be poisoned");
         let subscriber = Arc::new(CapturingSubscriber::default());
         let subscriber_ref = Arc::clone(&subscriber);
 
-        tracing::subscriber::with_default(subscriber, action);
+        tracing::subscriber::with_default(subscriber, || {
+            tracing::callsite::rebuild_interest_cache();
+            action();
+            tracing::callsite::rebuild_interest_cache();
+        });
 
         subscriber_ref.captured_events()
+    }
+
+    fn validate_connection_with_log_lock(
+        repository: &SqlServerConnectionRepository,
+    ) -> RepositoryResult<bool> {
+        let _capture_guard = LOG_CAPTURE_LOCK
+            .lock()
+            .expect("log capture lock should not be poisoned");
+
+        tracing::callsite::rebuild_interest_cache();
+        let result =
+            futures::executor::block_on(ConnectionRepository::validate_connection(repository));
+        tracing::callsite::rebuild_interest_cache();
+
+        result
     }
 
     fn joined_event_fields(events: &[CapturedEvent]) -> String {
@@ -444,8 +470,7 @@ mod tests {
     fn GivenMockClient_WhenValidationIsRequested_ThenRepository_ShouldReturnTrue() {
         let repository = SqlServerConnectionRepository::with_client(build_config(), SuccessClient);
 
-        let result =
-            futures::executor::block_on(ConnectionRepository::validate_connection(&repository));
+        let result = validate_connection_with_log_lock(&repository);
 
         assert_eq!(result, Ok(true));
     }
@@ -499,8 +524,7 @@ mod tests {
         let repository =
             SqlServerConnectionRepository::with_client(build_config(), InvalidTypeClient);
 
-        let result =
-            futures::executor::block_on(ConnectionRepository::validate_connection(&repository));
+        let result = validate_connection_with_log_lock(&repository);
 
         assert_eq!(
             result,
@@ -514,8 +538,7 @@ mod tests {
     fn GivenMssqlClientFailure_WhenValidationIsRequested_ThenRepository_ShouldMapError() {
         let repository = SqlServerConnectionRepository::with_client(build_config(), FailingClient);
 
-        let result =
-            futures::executor::block_on(ConnectionRepository::validate_connection(&repository));
+        let result = validate_connection_with_log_lock(&repository);
 
         assert_eq!(
             result,
@@ -531,8 +554,7 @@ mod tests {
         let repository =
             SqlServerConnectionRepository::with_client(build_config(), GenericFailingClient);
 
-        let result =
-            futures::executor::block_on(ConnectionRepository::validate_connection(&repository));
+        let result = validate_connection_with_log_lock(&repository);
 
         assert_eq!(
             result,

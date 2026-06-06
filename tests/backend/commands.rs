@@ -20,6 +20,8 @@ use tracing::{
 };
 use tracing_subscriber::{layer::Context, prelude::*, registry::LookupSpan, Layer};
 
+static LOG_CAPTURE_LOCK: Mutex<()> = Mutex::new(());
+
 #[derive(Clone)]
 struct CapturedLogLayer {
     events: Arc<Mutex<Vec<String>>>,
@@ -74,18 +76,38 @@ where
 }
 
 fn capture_logs<R>(operation: impl FnOnce() -> R) -> (R, Vec<String>) {
+    let _capture_guard = LOG_CAPTURE_LOCK
+        .lock()
+        .expect("log capture lock should not be poisoned");
     let events = Arc::new(Mutex::new(Vec::new()));
     let subscriber = tracing_subscriber::registry().with(CapturedLogLayer {
         events: events.clone(),
     });
 
-    let result = tracing::subscriber::with_default(subscriber, operation);
+    let result = tracing::subscriber::with_default(subscriber, || {
+        tracing::callsite::rebuild_interest_cache();
+        let result = operation();
+        tracing::callsite::rebuild_interest_cache();
+        result
+    });
     let logs = events
         .lock()
         .expect("captured log lock should not be poisoned")
         .clone();
 
     (result, logs)
+}
+
+fn run_with_log_callsite_lock<R>(operation: impl FnOnce() -> R) -> R {
+    let _capture_guard = LOG_CAPTURE_LOCK
+        .lock()
+        .expect("log capture lock should not be poisoned");
+
+    tracing::callsite::rebuild_interest_cache();
+    let result = operation();
+    tracing::callsite::rebuild_interest_cache();
+
+    result
 }
 
 fn valid_connection_request() -> ConnectionTestRequest {
@@ -124,7 +146,9 @@ fn GivenMissingConfiguration_WhenTestConnectionHandlerIsCalled_ThenResult_Should
     let mut request = valid_connection_request();
     request.username.clear();
 
-    let result = tauri::async_runtime::block_on(test_connection_with_state(&app_state, request));
+    let result = run_with_log_callsite_lock(|| {
+        tauri::async_runtime::block_on(test_connection_with_state(&app_state, request))
+    });
 
     let error = result.expect_err("expected invalid configuration error");
     assert_eq!(error.code, "INVALID_CONFIGURATION");
@@ -142,7 +166,7 @@ fn GivenManagedState_WhenGreetCommandIsCalled_ThenResponse_ShouldWrapGreetingMes
         .build(tauri::test::mock_context(tauri::test::noop_assets()))
         .expect("mock app should build");
 
-    let result = greet_command(app.state(), "Ana");
+    let result = run_with_log_callsite_lock(|| greet_command(app.state(), "Ana"));
 
     assert_eq!(result.message, "Greeting generated successfully");
     assert_eq!(result.data, "Hello, Ana! You've been greeted from Rust!");
@@ -181,7 +205,8 @@ fn GivenManagedStateAndMissingConfiguration_WhenTestConnectionIsCalled_ThenRespo
     let mut request = valid_connection_request();
     request.password = "invalid;password".to_string();
 
-    let result = tauri::async_runtime::block_on(test_connection(app.state(), request));
+    let result =
+        run_with_log_callsite_lock(|| tauri::async_runtime::block_on(test_connection(app.state(), request)));
 
     let error = result.expect_err("expected invalid configuration error");
     assert_eq!(error.code, "INVALID_CONFIGURATION");
@@ -223,7 +248,9 @@ fn GivenMockedServices_WhenTestConnectionCommandRuns_ThenCommand_ShouldDelegateA
         .build(tauri::test::mock_context(tauri::test::noop_assets()))
         .expect("mock app should build");
 
-    let result = tauri::async_runtime::block_on(test_connection(app.state(), valid_connection_request()));
+    let result = run_with_log_callsite_lock(|| {
+        tauri::async_runtime::block_on(test_connection(app.state(), valid_connection_request()))
+    });
 
     let error = result.expect_err("expected service error");
     assert_eq!(error.code, "CONNECTION_FAILED");
@@ -271,9 +298,10 @@ fn GivenSuccessfulServiceResult_WhenTestConnectionCommandRuns_ThenResponse_Shoul
         .build(tauri::test::mock_context(tauri::test::noop_assets()))
         .expect("mock app should build");
 
-    let response: ConnectionTestResponse =
+    let response: ConnectionTestResponse = run_with_log_callsite_lock(|| {
         tauri::async_runtime::block_on(test_connection(app.state(), valid_connection_request()))
-            .expect("connection test should succeed");
+    })
+    .expect("connection test should succeed");
 
     assert!(response.success);
     assert_eq!(response.message, "Connection successful");
@@ -383,8 +411,10 @@ fn GivenConnectionRequest_WhenTestConnectionCommandRuns_ThenCommand_ShouldUseReq
     request.database = "inventory".to_string();
     request.encrypt = false;
 
-    let result = tauri::async_runtime::block_on(test_connection_with_state(&app_state, request))
-        .expect("connection test should succeed");
+    let result = run_with_log_callsite_lock(|| {
+        tauri::async_runtime::block_on(test_connection_with_state(&app_state, request))
+    })
+    .expect("connection test should succeed");
 
     assert_eq!(result.database.as_deref(), Some("inventory"));
     assert_eq!(result.latency_ms, Some(7));
