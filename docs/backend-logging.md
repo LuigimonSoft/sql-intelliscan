@@ -14,16 +14,44 @@ The backend logging stack is:
 
 Logging is initialized once from `src-tauri` through `init_logging`.
 
-The default filter is `info`. It can be overridden with `RUST_LOG`, for example:
+Runtime environment detection is centralized in `src-tauri` and reads
+`SQL_INTELLISCAN_ENV`.
+
+Supported environments and default filters:
+
+- `development`: `debug`
+- `test`: `warn`
+- `staging`: `info`
+- `production`: `warn`
+
+If `SQL_INTELLISCAN_ENV` is missing, the app assumes `development` for local
+developer ergonomics. If it is invalid or not valid Unicode, the app falls back
+to `production`.
+
+The selected environment default can be overridden. Precedence is:
+
+1. `RUST_LOG`
+2. `SQL_INTELLISCAN_LOG_LEVEL`
+3. environment default
+
+Examples:
 
 ```bash
+SQL_INTELLISCAN_ENV=development
+SQL_INTELLISCAN_ENV=production
 RUST_LOG=debug
 RUST_LOG=sql_intelliscan_lib::logging=debug,warn
+SQL_INTELLISCAN_LOG_LEVEL=info
 ```
 
 By default, `tracing` uses the Rust module path as the event target, such as `sql_intelliscan_lib::logging::logging_config`. Use `target: "sql_intelliscan::..."` in macros when you want logs to match the stable application targets shown below.
 
-Invalid filter values fall back to `info`. If another embedded component has already installed a global subscriber, backend startup treats that as non-fatal and continues.
+Invalid filter values are ignored without crashing, and the next source in the
+precedence order is attempted. For example, an invalid `RUST_LOG` value still
+allows a valid `SQL_INTELLISCAN_LOG_LEVEL` value to be used. If all configured
+overrides are missing or invalid, logging falls back to the current environment
+default. If another embedded component has already installed a global
+subscriber, backend startup treats that as non-fatal and continues.
 
 ## Conventions
 

@@ -16,14 +16,20 @@ pub use config::connection_config_loader::{
     load_connection_config, load_connection_config_from_connection_string,
     load_connection_config_from_env_value, CONNECTION_STRING_ENV_VAR,
 };
+pub use config::environment::{
+    app_environment_from_env_value, current_app_environment, parse_app_environment, AppEnvironment,
+    APP_ENVIRONMENT_ENV_VAR,
+};
 use configuration::run_builder;
 pub use configuration::{build_app, try_build_app};
 pub use dependency_wiring::{
     build_app_state, greet_user, shared_app_state, validate_sql_server_connection,
 };
 pub use logging::{
-    build_log_filter_from_env_value, init_logging, logging_stack_decision, LoggingInitError,
-    DEFAULT_LOG_FILTER, LOG_FILTER_ENV_VAR,
+    build_log_filter, build_log_filter_from_env_value,
+    build_log_filter_from_env_value_for_environment, default_log_filter_for_environment,
+    init_logging, logging_stack_decision, LoggingInitError, DEFAULT_LOG_FILTER, LOG_FILTER_ENV_VAR,
+    PROJECT_LOG_FILTER_ENV_VAR,
 };
 pub use sql_intelliscan_services::errors::ServiceError;
 pub use sql_intelliscan_services::models;
