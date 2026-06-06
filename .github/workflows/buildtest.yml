@@ -37,10 +37,6 @@ jobs:
           librsvg2-dev \
           libsoup-3.0-dev \
           libjavascriptcoregtk-4.1-dev
-      - name: Install Tauri
-        run: cargo install create-tauri-app --locked
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2.0.0" --locked
       - name: Build tests once (without running)
         run: cargo test --workspace --no-run
       - name: Test
