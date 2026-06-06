@@ -12,6 +12,12 @@ use crate::config::environment::{
 pub const DEFAULT_LOG_FILTER: &str = "debug";
 pub const LOG_FILTER_ENV_VAR: &str = "RUST_LOG";
 pub const PROJECT_LOG_FILTER_ENV_VAR: &str = "SQL_INTELLISCAN_LOG_LEVEL";
+pub const ENVIRONMENT_DEFAULT_LOG_FILTERS: &[(AppEnvironment, &str)] = &[
+    (AppEnvironment::Development, "debug"),
+    (AppEnvironment::Test, "warn"),
+    (AppEnvironment::Staging, "info"),
+    (AppEnvironment::Production, "warn"),
+];
 
 static LOGGING_INITIALIZED: OnceLock<()> = OnceLock::new();
 
@@ -23,7 +29,7 @@ pub struct LoggingStackDecision {
     pub environment_variable: &'static str,
     pub project_environment_variable: &'static str,
     pub runtime_environment_variable: &'static str,
-    pub default_filter: &'static str,
+    pub environment_default_filters: &'static [(AppEnvironment, &'static str)],
 }
 
 #[derive(Debug)]
@@ -57,17 +63,17 @@ pub fn logging_stack_decision() -> LoggingStackDecision {
         environment_variable: LOG_FILTER_ENV_VAR,
         project_environment_variable: PROJECT_LOG_FILTER_ENV_VAR,
         runtime_environment_variable: APP_ENVIRONMENT_ENV_VAR,
-        default_filter: DEFAULT_LOG_FILTER,
+        environment_default_filters: ENVIRONMENT_DEFAULT_LOG_FILTERS,
     }
 }
 
 pub fn default_log_filter_for_environment(environment: AppEnvironment) -> &'static str {
-    match environment {
-        AppEnvironment::Development => "debug",
-        AppEnvironment::Test => "warn",
-        AppEnvironment::Staging => "info",
-        AppEnvironment::Production => "warn",
-    }
+    ENVIRONMENT_DEFAULT_LOG_FILTERS
+        .iter()
+        .find_map(|(configured_environment, filter)| {
+            (*configured_environment == environment).then_some(*filter)
+        })
+        .expect("every supported application environment must have a default log filter")
 }
 
 pub fn build_log_filter_from_env_value(

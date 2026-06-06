@@ -46,8 +46,11 @@ SQL_INTELLISCAN_LOG_LEVEL=info
 
 By default, `tracing` uses the Rust module path as the event target, such as `sql_intelliscan_lib::logging::logging_config`. Use `target: "sql_intelliscan::..."` in macros when you want logs to match the stable application targets shown below.
 
-Invalid filter values fall back to the current environment default without
-crashing. If another embedded component has already installed a global
+Invalid filter values are ignored without crashing, and the next source in the
+precedence order is attempted. For example, an invalid `RUST_LOG` value still
+allows a valid `SQL_INTELLISCAN_LOG_LEVEL` value to be used. If all configured
+overrides are missing or invalid, logging falls back to the current environment
+default. If another embedded component has already installed a global
 subscriber, backend startup treats that as non-fatal and continues.
 
 ## Conventions

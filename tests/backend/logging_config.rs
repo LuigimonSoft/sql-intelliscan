@@ -21,7 +21,15 @@ fn GivenLoggingStack_WhenDecisionIsReviewed_ThenSelection_ShouldUseTracingWithou
         decision.runtime_environment_variable,
         sql_intelliscan_lib::APP_ENVIRONMENT_ENV_VAR
     );
-    assert_eq!(decision.default_filter, DEFAULT_LOG_FILTER);
+    assert_eq!(
+        decision.environment_default_filters,
+        &[
+            (AppEnvironment::Development, "debug"),
+            (AppEnvironment::Test, "warn"),
+            (AppEnvironment::Staging, "info"),
+            (AppEnvironment::Production, "warn"),
+        ]
+    );
 }
 
 #[test]
@@ -96,6 +104,17 @@ fn GivenInvalidOverrides_WhenFilterIsBuilt_ThenEnvironmentDefault_ShouldBeUsed()
     );
 
     assert_eq!(filter.to_string(), "warn");
+}
+
+#[test]
+fn GivenInvalidRustLogAndValidProjectOverride_WhenFilterIsBuilt_ThenProjectOverride_ShouldBeUsed() {
+    let filter = build_log_filter(
+        Ok("bad=definitely_invalid".to_owned()),
+        Ok("info".to_owned()),
+        AppEnvironment::Production,
+    );
+
+    assert_eq!(filter.to_string(), "info");
 }
 
 #[test]
